@@ -7,7 +7,7 @@ First, create a client:
 ```python
 from stateset_client import Client
 
-client = Client(base_url="https://api.example.com")
+client = Client(base_url="https://api.stateset.com")
 ```
 
 If the endpoints you're going to hit require authentication, use `AuthenticatedClient` instead:
@@ -15,7 +15,7 @@ If the endpoints you're going to hit require authentication, use `AuthenticatedC
 ```python
 from stateset_client import AuthenticatedClient
 
-client = AuthenticatedClient(base_url="https://api.example.com", token="SuperSecretToken")
+client = AuthenticatedClient(base_url="https://api.stateset.com", token="SuperSecretToken")
 ```
 
 Now call your endpoint and use your models:
@@ -47,7 +47,7 @@ By default, when you're calling an HTTPS API it will attempt to verify that SSL 
 
 ```python
 client = AuthenticatedClient(
-    base_url="https://internal_api.example.com", 
+    base_url="https://internal_api.stateset.com", 
     token="SuperSecretToken",
     verify_ssl="/path/to/certificate_bundle.pem",
 )
@@ -57,7 +57,7 @@ You can also disable certificate validation altogether, but beware that **this i
 
 ```python
 client = AuthenticatedClient(
-    base_url="https://internal_api.example.com", 
+    base_url="https://internal_api.stateset.com", 
     token="SuperSecretToken", 
     verify_ssl=False
 )
@@ -89,7 +89,7 @@ def log_response(response):
     print(f"Response event hook: {request.method} {request.url} - Status {response.status_code}")
 
 client = Client(
-    base_url="https://api.example.com",
+    base_url="https://api.stateset.com",
     httpx_args={"event_hooks": {"request": [log_request], "response": [log_response]}},
 )
 
@@ -103,10 +103,10 @@ import httpx
 from stateset_client import Client
 
 client = Client(
-    base_url="https://api.example.com",
+    base_url="https://api.stateset.com",
 )
 # Note that base_url needs to be re-set, as would any shared cookies, headers, etc.
-client.set_httpx_client(httpx.Client(base_url="https://api.example.com", proxies="http://localhost:8030"))
+client.set_httpx_client(httpx.Client(base_url="https://api.stateset.com", proxies="http://localhost:8030"))
 ```
 
 ## Building / publishing this package
