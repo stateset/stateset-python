@@ -1,39 +1,44 @@
-[tool.poetry]
-name = "stateset-client"
-version = "1.0.0"
-description = "A client library for accessing Stateset"
-
-authors = []
-
-readme = "README.md"
-packages = [
-    {include = "stateset_client"},
-]
-include = ["CHANGELOG.md", "stateset_client/py.typed"]
-
-[tool.poetry.dependencies]
-python = "^3.8"
-httpx = ">=0.20.0,<0.25.0"
-attrs = ">=21.3.0"
-python-dateutil = "^2.8.0"
-
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stateset"
+version = "1.0.0"
+description = "Python client for the Stateset API"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+dependencies = [
+    "httpx>=0.24.0",
+    "attrs>=21.3.0",
+    "python-dateutil>=2.8.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.20.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "isort>=5.0.0",
+    "mypy>=0.990",
+]
 
 [tool.black]
-line-length = 120
-target_version = ['py38', 'py39', 'py310', 'py311']
-exclude = '''
-(
-  /(
-    | \.git
-    | \.venv
-    | \.mypy_cache
-  )/
-)
-'''
+line-length = 88
+target-version = ["py38"]
 
 [tool.isort]
-line_length = 120
 profile = "black"
+line_length = 88
+multi_line_output = 3
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

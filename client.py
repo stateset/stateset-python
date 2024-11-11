@@ -1,268 +1,154 @@
-import ssl
-from typing import Any, Dict, Optional, Union
+from typing import Optional, Dict, Any
+from httpx import Timeout
+from attrs import define, field
 
-import httpx
-from attrs import define, evolve, field
-
+from .client import AuthenticatedClient
+from .resources.return_resource import Returns
+from .resources.warranty_resource import Warranties
+from .resources.product_resource import Products
+from .resources.order_resource import Orders
+from .resources.shipment_resource import Shipments
+from .resources.inventory_resource import Inventory
+from .resources.customer_resource import Customers
+from .resources.workorder_resource import WorkOrders
+from .resources.bill_of_material_resource import BillOfMaterials
+from .resources.purchase_order_resource import PurchaseOrders
+from .resources.manufacture_order_resource import ManufactureOrders
+from .resources.channel_resource import Channels
+from .resources.message_resource import Messages
+from .resources.agent_resource import Agents
+from .resources.rule_resource import Rules
+from .resources.attribute_resource import Attributes
+from .resources.workflow_resource import Workflows
+from .resources.user_resource import Users
+from .resources.return_line_resource import ReturnLines
+from .resources.warranty_line_resource import WarrantyLines
+from .resources.order_line_resource import OrderLines
+from .resources.shipment_line_resource import ShipmentLines
+from .resources.workorder_line_resource import WorkOrderLines
+from .resources.purchase_order_line_resource import PurchaseOrderLines
+from .resources.manufacture_order_line_resource import ManufactureOrderLines
+from .resources.settlement_resource import Settlements
+from .resources.payout_resource import Payouts
+from .resources.pick_resource import Picks
+from .resources.cycle_count_resource import CycleCounts
+from .resources.machine_resource import Machines
+from .resources.waste_and_scrap_resource import WasteAndScrap
+from .resources.supplier_resource import Suppliers
+from .resources.location_resource import Locations
+from .resources.vendor_resource import Vendors
+from .resources.invoice_resource import Invoices
+from .resources.invoice_line_resource import InvoiceLines
+from .resources.compliance_resource import Compliance
+from .resources.lead_resource import Leads
+from .resources.asset_resource import Assets
+from .resources.contract_resource import Contracts
+from .resources.promotion_resource import Promotions
+from .resources.schedule_resource import Schedule
+from .resources.ship_to_resource import ShipTo
+from .resources.log_resource import Logs
 
 @define
-class Client:
-    """A class for keeping track of data related to the API
-
-    The following are accepted as keyword arguments and will be used to construct httpx Clients internally:
-
-        ``base_url``: The base URL for the API, all requests are made to a relative path to this URL
-
-        ``cookies``: A dictionary of cookies to be sent with every request
-
-        ``headers``: A dictionary of headers to be sent with every request
-
-        ``timeout``: The maximum amount of a time a request can take. API functions will raise
-        httpx.TimeoutException if this is exceeded.
-
-        ``verify_ssl``: Whether or not to verify the SSL certificate of the API server. This should be True in production,
-        but can be set to False for testing purposes.
-
-        ``follow_redirects``: Whether or not to follow redirects. Default value is False.
-
-        ``httpx_args``: A dictionary of additional arguments to be passed to the ``httpx.Client`` and ``httpx.AsyncClient`` constructor.
-
-
-    Attributes:
-        raise_on_unexpected_status: Whether or not to raise an errors.UnexpectedStatus if the API returns a
-            status code that was not documented in the source OpenAPI document. Can also be provided as a keyword
-            argument to the constructor.
+class Stateset:
     """
+    Main Stateset SDK class that provides access to all Stateset API resources.
+    """
+    
+    api_key: str = field()
+    base_url: str = field(default="https://stateset-proxy-server.stateset.cloud.stateset.app/api")
+    _client: Optional[AuthenticatedClient] = field(init=False, default=None)
+    
+    def __attrs_post_init__(self):
+        self._client = AuthenticatedClient(
+            base_url=self.base_url,
+            token=self.api_key,
+            timeout=Timeout(timeout=30.0),
+            follow_redirects=True
+        )
+        
+        # Initialize all resource classes
+        self.returns = Returns(self._client)
+        self.return_items = ReturnLines(self._client)
+        self.warranties = Warranties(self._client)
+        self.warranty_items = WarrantyLines(self._client)
+        self.products = Products(self._client)
+        self.orders = Orders(self._client)
+        self.order_items = OrderLines(self._client)
+        self.shipments = Shipments(self._client)
+        self.shipment_items = ShipmentLines(self._client)
+        self.ship_to = ShipTo(self._client)
+        self.inventory = Inventory(self._client)
+        self.customers = Customers(self._client)
+        self.workorders = WorkOrders(self._client)
+        self.workorder_items = WorkOrderLines(self._client)
+        self.bill_of_materials = BillOfMaterials(self._client)
+        self.purchase_orders = PurchaseOrders(self._client)
+        self.purchase_order_items = PurchaseOrderLines(self._client)
+        self.manufacturer_orders = ManufactureOrders(self._client)
+        self.manufacturer_order_items = ManufactureOrderLines(self._client)
+        self.channels = Channels(self._client)
+        self.messages = Messages(self._client)
+        self.agents = Agents(self._client)
+        self.rules = Rules(self._client)
+        self.attributes = Attributes(self._client)
+        self.workflows = Workflows(self._client)
+        self.schedules = Schedule(self._client)
+        self.users = Users(self._client)
+        self.settlements = Settlements(self._client)
+        self.payouts = Payouts(self._client)
+        self.picks = Picks(self._client)
+        self.cycle_counts = CycleCounts(self._client)
+        self.machines = Machines(self._client)
+        self.waste_and_scrap = WasteAndScrap(self._client)
+        self.suppliers = Suppliers(self._client)
+        self.locations = Locations(self._client)
+        self.vendors = Vendors(self._client)
+        self.invoices = Invoices(self._client)
+        self.invoice_lines = InvoiceLines(self._client)
+        self.compliance = Compliance(self._client)
+        self.leads = Leads(self._client)
+        self.assets = Assets(self._client)
+        self.contracts = Contracts(self._client)
+        self.promotions = Promotions(self._client)
+        self.logs = Logs(self._client)
 
-    raise_on_unexpected_status: bool = field(default=False, kw_only=True)
-    _base_url: str
-    _cookies: Dict[str, str] = field(factory=dict, kw_only=True)
-    _headers: Dict[str, str] = field(factory=dict, kw_only=True)
-    _timeout: Optional[httpx.Timeout] = field(default=None, kw_only=True)
-    _verify_ssl: Union[str, bool, ssl.SSLContext] = field(default=True, kw_only=True)
-    _follow_redirects: bool = field(default=False, kw_only=True)
-    _httpx_args: Dict[str, Any] = field(factory=dict, kw_only=True)
-    _client: Optional[httpx.Client] = field(default=None, init=False)
-    _async_client: Optional[httpx.AsyncClient] = field(default=None, init=False)
-
-    def with_headers(self, headers: Dict[str, str]) -> "Client":
-        """Get a new client matching this one with additional headers"""
-        if self._client is not None:
-            self._client.headers.update(headers)
-        if self._async_client is not None:
-            self._async_client.headers.update(headers)
-        return evolve(self, headers={**self._headers, **headers})
-
-    def with_cookies(self, cookies: Dict[str, str]) -> "Client":
-        """Get a new client matching this one with additional cookies"""
-        if self._client is not None:
-            self._client.cookies.update(cookies)
-        if self._async_client is not None:
-            self._async_client.cookies.update(cookies)
-        return evolve(self, cookies={**self._cookies, **cookies})
-
-    def with_timeout(self, timeout: httpx.Timeout) -> "Client":
-        """Get a new client matching this one with a new timeout (in seconds)"""
-        if self._client is not None:
-            self._client.timeout = timeout
-        if self._async_client is not None:
-            self._async_client.timeout = timeout
-        return evolve(self, timeout=timeout)
-
-    def set_httpx_client(self, client: httpx.Client) -> "Client":
-        """Manually the underlying httpx.Client
-
-        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
+    async def request(self, method: str, path: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        self._client = client
-        return self
-
-    def get_httpx_client(self) -> httpx.Client:
-        """Get the underlying httpx.Client, constructing a new one if not previously set"""
-        if self._client is None:
-            self._client = httpx.Client(
-                base_url=self._base_url,
-                cookies=self._cookies,
-                headers=self._headers,
-                timeout=self._timeout,
-                verify=self._verify_ssl,
-                follow_redirects=self._follow_redirects,
-                **self._httpx_args,
-            )
-        return self._client
-
-    def __enter__(self) -> "Client":
-        """Enter a context manager for self.client—you cannot enter twice (see httpx docs)"""
-        self.get_httpx_client().__enter__()
-        return self
-
-    def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit a context manager for internal httpx.Client (see httpx docs)"""
-        self.get_httpx_client().__exit__(*args, **kwargs)
-
-    def set_async_httpx_client(self, async_client: httpx.AsyncClient) -> "Client":
-        """Manually the underlying httpx.AsyncClient
-
-        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
+        Make an authenticated request to the Stateset API.
+        
+        Args:
+            method: HTTP method to use (GET, POST, PUT, DELETE, etc.)
+            path: API endpoint path
+            data: Optional request body data
+            
+        Returns:
+            API response as a dictionary
         """
-        self._async_client = async_client
-        return self
-
-    def get_async_httpx_client(self) -> httpx.AsyncClient:
-        """Get the underlying httpx.AsyncClient, constructing a new one if not previously set"""
-        if self._async_client is None:
-            self._async_client = httpx.AsyncClient(
-                base_url=self._base_url,
-                cookies=self._cookies,
-                headers=self._headers,
-                timeout=self._timeout,
-                verify=self._verify_ssl,
-                follow_redirects=self._follow_redirects,
-                **self._httpx_args,
+        client = self._client.get_async_httpx_client()
+        
+        try:
+            response = await client.request(
+                method=method,
+                url=path,
+                json=data
             )
-        return self._async_client
+            response.raise_for_status()
+            return response.json()
+            
+        except Exception as e:
+            print(f"Error in Stateset request: {str(e)}")
+            raise
 
-    async def __aenter__(self) -> "Client":
-        """Enter a context manager for underlying httpx.AsyncClient—you cannot enter twice (see httpx docs)"""
-        await self.get_async_httpx_client().__aenter__()
+    async def __aenter__(self) -> "Stateset":
+        await self._client.__aenter__()
         return self
 
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit a context manager for underlying httpx.AsyncClient (see httpx docs)"""
-        await self.get_async_httpx_client().__aexit__(*args, **kwargs)
+        await self._client.__aexit__(*args, **kwargs)
 
-
-@define
-class AuthenticatedClient:
-    """A Client which has been authenticated for use on secured endpoints
-
-    The following are accepted as keyword arguments and will be used to construct httpx Clients internally:
-
-        ``base_url``: The base URL for the API, all requests are made to a relative path to this URL
-
-        ``cookies``: A dictionary of cookies to be sent with every request
-
-        ``headers``: A dictionary of headers to be sent with every request
-
-        ``timeout``: The maximum amount of a time a request can take. API functions will raise
-        httpx.TimeoutException if this is exceeded.
-
-        ``verify_ssl``: Whether or not to verify the SSL certificate of the API server. This should be True in production,
-        but can be set to False for testing purposes.
-
-        ``follow_redirects``: Whether or not to follow redirects. Default value is False.
-
-        ``httpx_args``: A dictionary of additional arguments to be passed to the ``httpx.Client`` and ``httpx.AsyncClient`` constructor.
-
-
-    Attributes:
-        raise_on_unexpected_status: Whether or not to raise an errors.UnexpectedStatus if the API returns a
-            status code that was not documented in the source OpenAPI document. Can also be provided as a keyword
-            argument to the constructor.
-        token: The token to use for authentication
-        prefix: The prefix to use for the Authorization header
-        auth_header_name: The name of the Authorization header
-    """
-
-    raise_on_unexpected_status: bool = field(default=False, kw_only=True)
-    _base_url: str
-    _cookies: Dict[str, str] = field(factory=dict, kw_only=True)
-    _headers: Dict[str, str] = field(factory=dict, kw_only=True)
-    _timeout: Optional[httpx.Timeout] = field(default=None, kw_only=True)
-    _verify_ssl: Union[str, bool, ssl.SSLContext] = field(default=True, kw_only=True)
-    _follow_redirects: bool = field(default=False, kw_only=True)
-    _httpx_args: Dict[str, Any] = field(factory=dict, kw_only=True)
-    _client: Optional[httpx.Client] = field(default=None, init=False)
-    _async_client: Optional[httpx.AsyncClient] = field(default=None, init=False)
-
-    token: str
-    prefix: str = "Bearer"
-    auth_header_name: str = "Authorization"
-
-    def with_headers(self, headers: Dict[str, str]) -> "AuthenticatedClient":
-        """Get a new client matching this one with additional headers"""
-        if self._client is not None:
-            self._client.headers.update(headers)
-        if self._async_client is not None:
-            self._async_client.headers.update(headers)
-        return evolve(self, headers={**self._headers, **headers})
-
-    def with_cookies(self, cookies: Dict[str, str]) -> "AuthenticatedClient":
-        """Get a new client matching this one with additional cookies"""
-        if self._client is not None:
-            self._client.cookies.update(cookies)
-        if self._async_client is not None:
-            self._async_client.cookies.update(cookies)
-        return evolve(self, cookies={**self._cookies, **cookies})
-
-    def with_timeout(self, timeout: httpx.Timeout) -> "AuthenticatedClient":
-        """Get a new client matching this one with a new timeout (in seconds)"""
-        if self._client is not None:
-            self._client.timeout = timeout
-        if self._async_client is not None:
-            self._async_client.timeout = timeout
-        return evolve(self, timeout=timeout)
-
-    def set_httpx_client(self, client: httpx.Client) -> "AuthenticatedClient":
-        """Manually the underlying httpx.Client
-
-        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
-        """
-        self._client = client
-        return self
-
-    def get_httpx_client(self) -> httpx.Client:
-        """Get the underlying httpx.Client, constructing a new one if not previously set"""
-        if self._client is None:
-            self._headers[self.auth_header_name] = f"{self.prefix} {self.token}" if self.prefix else self.token
-            self._client = httpx.Client(
-                base_url=self._base_url,
-                cookies=self._cookies,
-                headers=self._headers,
-                timeout=self._timeout,
-                verify=self._verify_ssl,
-                follow_redirects=self._follow_redirects,
-                **self._httpx_args,
-            )
-        return self._client
-
-    def __enter__(self) -> "AuthenticatedClient":
-        """Enter a context manager for self.client—you cannot enter twice (see httpx docs)"""
-        self.get_httpx_client().__enter__()
+    def __enter__(self) -> "Stateset":
+        self._client.__enter__()
         return self
 
     def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit a context manager for internal httpx.Client (see httpx docs)"""
-        self.get_httpx_client().__exit__(*args, **kwargs)
-
-    def set_async_httpx_client(self, async_client: httpx.AsyncClient) -> "AuthenticatedClient":
-        """Manually the underlying httpx.AsyncClient
-
-        **NOTE**: This will override any other settings on the client, including cookies, headers, and timeout.
-        """
-        self._async_client = async_client
-        return self
-
-    def get_async_httpx_client(self) -> httpx.AsyncClient:
-        """Get the underlying httpx.AsyncClient, constructing a new one if not previously set"""
-        if self._async_client is None:
-            self._headers[self.auth_header_name] = f"{self.prefix} {self.token}" if self.prefix else self.token
-            self._async_client = httpx.AsyncClient(
-                base_url=self._base_url,
-                cookies=self._cookies,
-                headers=self._headers,
-                timeout=self._timeout,
-                verify=self._verify_ssl,
-                follow_redirects=self._follow_redirects,
-                **self._httpx_args,
-            )
-        return self._async_client
-
-    async def __aenter__(self) -> "AuthenticatedClient":
-        """Enter a context manager for underlying httpx.AsyncClient—you cannot enter twice (see httpx docs)"""
-        await self.get_async_httpx_client().__aenter__()
-        return self
-
-    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
-        """Exit a context manager for underlying httpx.AsyncClient (see httpx docs)"""
-        await self.get_async_httpx_client().__aexit__(*args, **kwargs)
+        self._client.__exit__(*args, **kwargs)
