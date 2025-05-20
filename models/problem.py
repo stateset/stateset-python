@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Type, TypeVar, Union
 
 from attrs import define, field
 
-from ..types import UNSET, Unset
+from ..stateset_types import UNSET, Unset
 
 T = TypeVar("T", bound="Problem")
 

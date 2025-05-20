@@ -3,6 +3,8 @@ import httpx
 from httpx import Timeout
 from attrs import define, field
 
+from .errors import raise_for_status_code
+
 
 class Client:
     """HTTP client wrapper used by the generated endpoints."""
@@ -53,22 +55,22 @@ class Client:
     # Convenience async request helpers ---------------------------------------
     async def get(self, path: str, **kwargs: Any) -> Dict[str, Any]:
         response = await self.get_async_httpx_client().get(path, **kwargs)
-        response.raise_for_status()
+        raise_for_status_code(response.status_code, response.content)
         return response.json()
 
     async def post(self, path: str, **kwargs: Any) -> Dict[str, Any]:
         response = await self.get_async_httpx_client().post(path, **kwargs)
-        response.raise_for_status()
+        raise_for_status_code(response.status_code, response.content)
         return response.json()
 
     async def put(self, path: str, **kwargs: Any) -> Dict[str, Any]:
         response = await self.get_async_httpx_client().put(path, **kwargs)
-        response.raise_for_status()
+        raise_for_status_code(response.status_code, response.content)
         return response.json()
 
     async def delete(self, path: str, **kwargs: Any) -> None:
         response = await self.get_async_httpx_client().delete(path, **kwargs)
-        response.raise_for_status()
+        raise_for_status_code(response.status_code, response.content)
 
     # Lifecycle management -----------------------------------------------------
     def __enter__(self) -> "Client":
@@ -225,7 +227,7 @@ class Stateset:
                 url=path,
                 json=data
             )
-            response.raise_for_status()
+            raise_for_status_code(response.status_code, response.content)
             return response.json()
             
         except Exception as e:

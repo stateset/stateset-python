@@ -23,7 +23,7 @@ Now call your endpoint and use your models:
 ```python
 from stateset_client.models import MyDataModel
 from stateset_client.api.my_tag import get_my_data_model
-from stateset_client.types import Response
+from stateset_client.stateset_types import Response
 
 with client as client:
     my_data: MyDataModel = get_my_data_model.sync(client=client)
@@ -36,7 +36,7 @@ Or do the same thing with an async version:
 ```python
 from stateset_client.models import MyDataModel
 from stateset_client.api.my_tag import get_my_data_model
-from stateset_client.types import Response
+from stateset_client.stateset_types import Response
 
 async with client as client:
     my_data: MyDataModel = await get_my_data_model.asyncio(client=client)

@@ -6,7 +6,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.work_order_line_items import WorkOrderLineItems
-from ...types import UNSET, Response
+from ...stateset_types import UNSET, Response
 
 
 def _get_kwargs(

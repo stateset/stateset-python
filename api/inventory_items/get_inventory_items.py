@@ -6,7 +6,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.inventory_items import InventoryItems
-from ...types import UNSET, Response
+from ...stateset_types import UNSET, Response
 
 
 def _get_kwargs(

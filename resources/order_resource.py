@@ -7,7 +7,7 @@ from datetime import datetime
 from attrs import define, field
 
 from .base_resource import BaseResource
-from .types import StatesetObject, StatesetID, OrderStatus, Metadata
+from .stateset_types import StatesetObject, StatesetID, OrderStatus, Metadata
 
 @define
 class OrderItem:
