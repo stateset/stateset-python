@@ -132,6 +132,18 @@ class Client:
         if self._async_client:
             await self._async_client.aclose()
 
+    def close(self) -> None:
+        """Close any underlying HTTP clients."""
+        if self._client is not None and not self._client.is_closed:
+            self._client.close()
+        if self._async_client is not None and not self._async_client.is_closed:
+            try:
+                import asyncio
+
+                asyncio.run(self._async_client.aclose())
+            except RuntimeError:
+                pass
+
 
 class AuthenticatedClient(Client):
     """Adds bearer token authentication to :class:`Client`."""
@@ -314,3 +326,7 @@ class Stateset:
 
     def __exit__(self, *args: Any, **kwargs: Any) -> None:
         self._client.__exit__(*args, **kwargs)
+
+    def close(self) -> None:
+        """Close the underlying HTTP client."""
+        self._client.close()

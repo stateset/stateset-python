@@ -56,6 +56,9 @@ client = Stateset()
 
 # You can pass extra httpx options if needed
 # client = Stateset(httpx_args={"timeout": 10.0})
+
+# When not using a context manager, close the client explicitly
+client.close()
 ```
 
 The SDK automatically sets a ``User-Agent`` header on all requests in the form
