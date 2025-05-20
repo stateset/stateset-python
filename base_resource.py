@@ -4,9 +4,9 @@ Base resource class that implements common functionality for all Stateset API re
 
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 from .client import AuthenticatedClient
-from .stateset_types import PaginatedList, PaginationParams, StatesetObject
+from .stateset_types import PaginatedList, PaginationParams
 
-T = TypeVar('T', bound=StatesetObject)
+T = TypeVar("T")
 
 class BaseResource(Generic[T]):
     """Base class for all Stateset API resources."""

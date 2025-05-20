@@ -114,5 +114,6 @@ if TYPE_CHECKING:
     from .resources.warranty_resource import Warranties
     from .resources.order_resource import Orders
     from .resources.inventory_resource import Inventory
+    from .resources.customer_resource import Customers
 
     # Add other resource types as needed
