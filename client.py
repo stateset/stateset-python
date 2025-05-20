@@ -1,8 +1,101 @@
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Mapping
+import httpx
 from httpx import Timeout
 from attrs import define, field
 
-from .client import AuthenticatedClient
+
+class Client:
+    """HTTP client wrapper used by the generated endpoints."""
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        headers: Optional[Mapping[str, str]] = None,
+        timeout: Timeout | float | None = None,
+        follow_redirects: bool = True,
+        verify_ssl: bool | str = True,
+        raise_on_unexpected_status: bool = False,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.headers = dict(headers or {})
+        self.timeout = timeout if isinstance(timeout, Timeout) else Timeout(timeout or 5.0)
+        self.follow_redirects = follow_redirects
+        self.verify_ssl = verify_ssl
+        self.raise_on_unexpected_status = raise_on_unexpected_status
+        self._client: Optional[httpx.Client] = None
+        self._async_client: Optional[httpx.AsyncClient] = None
+
+    # Synchronous httpx client -------------------------------------------------
+    def get_httpx_client(self) -> httpx.Client:
+        if self._client is None:
+            self._client = httpx.Client(
+                base_url=self.base_url,
+                headers=self.headers,
+                timeout=self.timeout,
+                follow_redirects=self.follow_redirects,
+                verify=self.verify_ssl,
+            )
+        return self._client
+
+    # Async httpx client -------------------------------------------------------
+    def get_async_httpx_client(self) -> httpx.AsyncClient:
+        if self._async_client is None:
+            self._async_client = httpx.AsyncClient(
+                base_url=self.base_url,
+                headers=self.headers,
+                timeout=self.timeout,
+                follow_redirects=self.follow_redirects,
+                verify=self.verify_ssl,
+            )
+        return self._async_client
+
+    # Convenience async request helpers ---------------------------------------
+    async def get(self, path: str, **kwargs: Any) -> Dict[str, Any]:
+        response = await self.get_async_httpx_client().get(path, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
+    async def post(self, path: str, **kwargs: Any) -> Dict[str, Any]:
+        response = await self.get_async_httpx_client().post(path, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
+    async def put(self, path: str, **kwargs: Any) -> Dict[str, Any]:
+        response = await self.get_async_httpx_client().put(path, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
+    async def delete(self, path: str, **kwargs: Any) -> None:
+        response = await self.get_async_httpx_client().delete(path, **kwargs)
+        response.raise_for_status()
+
+    # Lifecycle management -----------------------------------------------------
+    def __enter__(self) -> "Client":
+        self.get_httpx_client()
+        return self
+
+    def __exit__(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover - simple close
+        if self._client:
+            self._client.close()
+
+    async def __aenter__(self) -> "Client":
+        self.get_async_httpx_client()
+        return self
+
+    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover - simple close
+        if self._async_client:
+            await self._async_client.aclose()
+
+
+class AuthenticatedClient(Client):
+    """Adds bearer token authentication to :class:`Client`."""
+
+    def __init__(self, *, token: str, base_url: str, **kwargs: Any) -> None:
+        headers = dict(kwargs.pop("headers", {}))
+        headers.setdefault("Authorization", f"Bearer {token}")
+        super().__init__(base_url=base_url, headers=headers, **kwargs)
+        self.token = token
 from .resources.return_resource import Returns
 from .resources.warranty_resource import Warranties
 from .resources.product_resource import Products
