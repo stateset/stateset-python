@@ -117,6 +117,7 @@ if TYPE_CHECKING:
     from .resources.customer_resource import Customers
     from .resources.message_resource import Messages
     from .resources.note_resource import Notes
+    from .resources.case_ticket_resource import CaseTickets
     from .resources.return_line_resource import ReturnLines
     from .resources.warranty_line_resource import WarrantyLines
 

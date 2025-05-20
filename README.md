@@ -61,6 +61,14 @@ client = Stateset()
 client.close()
 ```
 
+Once you have a client instance you can access customer service APIs like
+case tickets:
+
+```python
+async with client:
+    tickets = await client.case_tickets.list()
+```
+
 The SDK automatically sets a ``User-Agent`` header on all requests in the form
 ``stateset-python/<version>`` so that your integration can be identified by the
 Stateset API.
