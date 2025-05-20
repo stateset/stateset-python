@@ -24,8 +24,7 @@ Basic usage:
     ```
 """
 
-from .client import AuthenticatedClient, Client
-from .stateset import Stateset
+from .client import AuthenticatedClient, Client, Stateset
 from .types import (
     StatesetID,
     Timestamp,
