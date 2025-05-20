@@ -122,6 +122,8 @@ client = Client(
 )
 # Note that base_url needs to be re-set, as would any shared cookies, headers, etc.
 client.set_httpx_client(httpx.Client(base_url="https://api.stateset.com", proxies="http://localhost:8030"))
+async_client = httpx.AsyncClient(base_url="https://api.stateset.com", proxies="http://localhost:8030")
+client.set_async_httpx_client(async_client)
 ```
 
 ## Building / publishing this package

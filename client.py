@@ -44,6 +44,19 @@ class Client:
             )
         return self._client
 
+    def set_httpx_client(self, client: httpx.Client) -> None:
+        """Use a custom :class:`httpx.Client` instance."""
+        # Close any previously created client
+        if self._client is not None and not self._client.is_closed:
+            self._client.close()
+        self._client = client
+        # Keep configuration in sync with the new client
+        self.base_url = str(client.base_url).rstrip("/")
+        self.headers = dict(client.headers)
+        self.timeout = client.timeout
+        self.follow_redirects = client.follow_redirects
+        self.verify_ssl = client.verify
+
     # Async httpx client -------------------------------------------------------
     def get_async_httpx_client(self) -> httpx.AsyncClient:
         if self._async_client is None:
@@ -55,6 +68,21 @@ class Client:
                 verify=self.verify_ssl,
             )
         return self._async_client
+
+    def set_async_httpx_client(self, client: httpx.AsyncClient) -> None:
+        """Use a custom :class:`httpx.AsyncClient` instance."""
+        if self._async_client is not None and not self._async_client.is_closed:
+            try:
+                import asyncio
+                asyncio.get_event_loop().run_until_complete(self._async_client.aclose())
+            except Exception:
+                pass
+        self._async_client = client
+        self.base_url = str(client.base_url).rstrip("/")
+        self.headers = dict(client.headers)
+        self.timeout = client.timeout
+        self.follow_redirects = client.follow_redirects
+        self.verify_ssl = client.verify
 
     # Convenience async request helpers ---------------------------------------
     async def get(self, path: str, **kwargs: Any) -> Dict[str, Any]:
