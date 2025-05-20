@@ -9,6 +9,7 @@ from .manufacture_order_line_item import ManufactureOrderLineItem
 from .messages import Messages
 from .notes import Notes
 from .problem import Problem
+from .case_ticket import CaseTicket
 from .return_ import Return
 from .return_item import ReturnItem
 from .warranty import Warranty
@@ -26,6 +27,7 @@ __all__ = (
     "Messages",
     "Notes",
     "Problem",
+    "CaseTicket",
     "Return",
     "ReturnItem",
     "Warranty",

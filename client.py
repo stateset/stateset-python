@@ -178,6 +178,7 @@ from .resources.manufacture_order_resource import ManufactureOrders
 from .resources.channel_resource import Channels
 from .resources.message_resource import Messages
 from .resources.note_resource import Notes
+from .resources.case_ticket_resource import CaseTickets
 from .resources.agent_resource import Agents
 from .resources.rule_resource import Rules
 from .resources.attribute_resource import Attributes
@@ -266,6 +267,7 @@ class Stateset:
         self.channels = Channels(self._client)
         self.messages = Messages(self._client)
         self.notes = Notes(self._client)
+        self.case_tickets = CaseTickets(self._client)
         self.agents = Agents(self._client)
         self.rules = Rules(self._client)
         self.attributes = Attributes(self._client)
