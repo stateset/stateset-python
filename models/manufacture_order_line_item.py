@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Type, TypeVar, Union
 from attrs import define, field
 from dateutil.parser import isoparse
 
-from ..types import UNSET, Unset
+from ..stateset_types import UNSET, Unset
 
 T = TypeVar("T", bound="ManufactureOrderLineItem")
 
