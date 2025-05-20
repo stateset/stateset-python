@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, BinaryIO, Dict, List, Optional, TextIO, T
 from attrs import define, field
 from dateutil.parser import isoparse
 
-from ..types import UNSET, Unset
+from ..stateset_types import UNSET, Unset
 
 T = TypeVar("T", bound="Warranty")
 
@@ -312,7 +312,6 @@ class Warranty:
             amount=amount,
             tax_refunded=tax_refunded,
             total_refunded=total_refunded,
-            created_date=created_date,
             serial_number=serial_number,
             reason_category=reason_category,
         )
