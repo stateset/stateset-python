@@ -10,7 +10,7 @@ from ...stateset_types import UNSET, Response
 
 
 def _get_kwargs(*, limit: float, offset: float, order_direction: str) -> Dict[str, Any]:
-    pass
+    """Build kwargs for listing orders."""
 
     params: Dict[str, Any] = {}
     params["limit"] = limit

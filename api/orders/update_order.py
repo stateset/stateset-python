@@ -10,7 +10,7 @@ from ...stateset_types import Response
 
 
 def _get_kwargs(id: str, *, json_body: Order) -> Dict[str, Any]:
-    pass
+    """Build keyword arguments for updating an order."""
 
     json_json_body = json_body.to_dict()
 
