@@ -10,7 +10,7 @@ from ...stateset_types import Response
 
 
 def _get_kwargs(id: str) -> Dict[str, Any]:
-    pass
+    """Build keyword arguments for get_order_by_id request."""
 
     return {
         "method": "get",
