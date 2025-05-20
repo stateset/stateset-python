@@ -67,6 +67,13 @@ case tickets:
 ```python
 async with client:
     tickets = await client.case_tickets.list()
+    # Create a new order
+    order = await client.orders.create({
+        "customer_id": "cust_123",
+        "status": "pending",
+        "items": [{"product_id": "prod_456", "quantity": 1, "price": 10.0}],
+        "total_amount": 10.0,
+    })
 ```
 
 The SDK automatically sets a ``User-Agent`` header on all requests in the form
