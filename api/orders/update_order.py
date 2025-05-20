@@ -51,9 +51,31 @@ def sync_detailed(id: str, *, client: AuthenticatedClient, json_body: Order) -> 
     return _build_response(client=client, response=response)
 
 
+def sync(id: str, *, client: AuthenticatedClient, json_body: Order) -> Optional[Any]:
+    """Update order"""
+
+    return sync_detailed(
+        id=id,
+        client=client,
+        json_body=json_body,
+    ).parsed
+
+
 async def asyncio_detailed(id: str, *, client: AuthenticatedClient, json_body: Order) -> Response[Any]:
     """Update order"""
 
     kwargs = _get_kwargs(id=id, json_body=json_body)
     response = await client.get_async_httpx_client().request(**kwargs)
     return _build_response(client=client, response=response)
+
+
+async def asyncio(id: str, *, client: AuthenticatedClient, json_body: Order) -> Optional[Any]:
+    """Update order"""
+
+    return (
+        await asyncio_detailed(
+            id=id,
+            client=client,
+            json_body=json_body,
+        )
+    ).parsed

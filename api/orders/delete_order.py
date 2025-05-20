@@ -45,9 +45,29 @@ def sync_detailed(id: str, *, client: AuthenticatedClient) -> Response[Any]:
     return _build_response(client=client, response=response)
 
 
+def sync(id: str, *, client: AuthenticatedClient) -> Optional[Any]:
+    """Delete order"""
+
+    return sync_detailed(
+        id=id,
+        client=client,
+    ).parsed
+
+
 async def asyncio_detailed(id: str, *, client: AuthenticatedClient) -> Response[Any]:
     """Delete order"""
 
     kwargs = _get_kwargs(id)
     response = await client.get_async_httpx_client().request(**kwargs)
     return _build_response(client=client, response=response)
+
+
+async def asyncio(id: str, *, client: AuthenticatedClient) -> Optional[Any]:
+    """Delete order"""
+
+    return (
+        await asyncio_detailed(
+            id=id,
+            client=client,
+        )
+    ).parsed
