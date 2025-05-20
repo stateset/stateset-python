@@ -12,8 +12,6 @@ from ...stateset_types import Response
 def _get_kwargs(
     id: str,
 ) -> Dict[str, Any]:
-    pass
-
     return {
         "method": "get",
         "url": "/customers/{id}".format(
@@ -57,7 +55,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Union[Any, Customers]]:
-    """Get customers by id
+    """Get customer by id
 
      Some description of the operation.
     You can use `Markdown` here.
@@ -89,7 +87,7 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> Optional[Union[Any, Customers]]:
-    """Get customers by id
+    """Get customer by id
 
      Some description of the operation.
     You can use `Markdown` here.
@@ -116,7 +114,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[Union[Any, Customers]]:
-    """Get customers by id
+    """Get customer by id
 
      Some description of the operation.
     You can use `Markdown` here.
@@ -146,7 +144,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> Optional[Union[Any, Customers]]:
-    """Get customers by id
+    """Get customer by id
 
      Some description of the operation.
     You can use `Markdown` here.
