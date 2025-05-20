@@ -1,4 +1,5 @@
 from typing import Optional, Dict, Any, Mapping
+import os
 import httpx
 from httpx import Timeout
 from attrs import define, field
@@ -143,20 +144,32 @@ from .resources.log_resource import Logs
 
 @define
 class Stateset:
+    """Main entry point for interacting with the Stateset API.
+
+    The ``api_key`` and ``base_url`` parameters can be supplied directly or via
+    the ``STATESET_API_KEY`` and ``STATESET_BASE_URL`` environment variables.
     """
-    Main Stateset SDK class that provides access to all Stateset API resources.
-    """
-    
-    api_key: str = field()
-    base_url: str = field(default="https://stateset-proxy-server.stateset.cloud.stateset.app/api")
+
+    api_key: str = field(default_factory=lambda: os.getenv("STATESET_API_KEY", ""))
+    base_url: str = field(
+        default_factory=lambda: os.getenv(
+            "STATESET_BASE_URL",
+            "https://stateset-proxy-server.stateset.cloud.stateset.app/api",
+        )
+    )
     _client: Optional[AuthenticatedClient] = field(init=False, default=None)
-    
+
     def __attrs_post_init__(self):
+        if not self.api_key:
+            raise ValueError(
+                "API key is required. Provide it via the 'api_key' argument or the 'STATESET_API_KEY' environment variable."
+            )
+
         self._client = AuthenticatedClient(
             base_url=self.base_url,
             token=self.api_key,
             timeout=Timeout(timeout=30.0),
-            follow_redirects=True
+            follow_redirects=True,
         )
         
         # Initialize all resource classes

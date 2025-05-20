@@ -43,6 +43,17 @@ async with client as client:
     response: Response[MyDataModel] = await get_my_data_model.asyncio_detailed(client=client)
 ```
 
+### Using the high level `Stateset` client
+
+The package exposes a convenience :class:`Stateset` class which reads the API key
+from the ``STATESET_API_KEY`` environment variable and optionally ``STATESET_BASE_URL``.
+
+```python
+from stateset import Stateset
+
+client = Stateset()  # configuration taken from the environment
+```
+
 By default, when you're calling an HTTPS API it will attempt to verify that SSL is working correctly. Using certificate verification is highly recommended most of the time, but sometimes you may need to authenticate to a server (especially an internal server) using a custom certificate bundle.
 
 ```python

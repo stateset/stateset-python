@@ -7,15 +7,16 @@ inventory management, and more.
 Basic usage:
     ```python
     from stateset import Stateset
-    
-    # Initialize the client
-    client = Stateset(api_key="your_api_key")
-    
+
+    # Initialize the client using environment variables
+    # STATESET_API_KEY and optional STATESET_BASE_URL
+    client = Stateset()
+
     # Make API calls
     async with client:
         # Get a list of returns
         returns = await client.returns.list()
-        
+
         # Create a new order
         order = await client.orders.create({
             "customer_id": "cust_123",
