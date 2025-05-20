@@ -51,7 +51,11 @@ from the ``STATESET_API_KEY`` environment variable and optionally ``STATESET_BAS
 ```python
 from stateset import Stateset
 
-client = Stateset()  # configuration taken from the environment
+# configuration taken from the environment
+client = Stateset()
+
+# You can pass extra httpx options if needed
+# client = Stateset(httpx_args={"timeout": 10.0})
 ```
 
 The SDK automatically sets a ``User-Agent`` header on all requests in the form

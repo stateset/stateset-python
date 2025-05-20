@@ -39,7 +39,7 @@ from .stateset_types import (
     File,
     FileUploadError,
     Response,
-    UNSET
+    UNSET,
 )
 from .errors import (
     StatesetError,
@@ -49,11 +49,11 @@ from .errors import (
     StatesetPermissionError,
     StatesetNotFoundError,
     StatesetConnectionError,
-    StatesetRateLimitError
+    StatesetRateLimitError,
 )
 
 # Semantic version of the SDK
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 # API version supported by this SDK
 __api_version__ = "2024-01"
@@ -61,11 +61,9 @@ __api_version__ = "2024-01"
 __all__ = [
     # Main client
     "Stateset",
-    
     # Base clients
     "AuthenticatedClient",
     "Client",
-    
     # Types
     "StatesetID",
     "Timestamp",
@@ -80,7 +78,6 @@ __all__ = [
     "FileUploadError",
     "Response",
     "UNSET",
-    
     # Errors
     "StatesetError",
     "StatesetInvalidRequestError",
@@ -90,7 +87,6 @@ __all__ = [
     "StatesetNotFoundError",
     "StatesetConnectionError",
     "StatesetRateLimitError",
-    
     # Version info
     "__version__",
     "__api_version__",
@@ -98,20 +94,25 @@ __all__ = [
 
 # Set default logging handler to avoid "No handler found" warnings.
 import logging
+
 try:
     from logging import NullHandler
 except ImportError:
+
     class NullHandler(logging.Handler):
         def emit(self, record):
             pass
+
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
 # Type checking
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from .resources.return_resource import Returns
     from .resources.warranty_resource import Warranties
     from .resources.order_resource import Orders
     from .resources.inventory_resource import Inventory
+
     # Add other resource types as needed

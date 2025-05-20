@@ -21,14 +21,18 @@ class Client:
         follow_redirects: bool = True,
         verify_ssl: bool | str = True,
         raise_on_unexpected_status: bool = False,
+        httpx_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.headers = dict(headers or {})
         self.headers.setdefault("User-Agent", f"stateset-python/{__version__}")
-        self.timeout = timeout if isinstance(timeout, Timeout) else Timeout(timeout or 5.0)
+        self.timeout = (
+            timeout if isinstance(timeout, Timeout) else Timeout(timeout or 5.0)
+        )
         self.follow_redirects = follow_redirects
         self.verify_ssl = verify_ssl
         self.raise_on_unexpected_status = raise_on_unexpected_status
+        self.httpx_args = dict(httpx_args or {})
         self._client: Optional[httpx.Client] = None
         self._async_client: Optional[httpx.AsyncClient] = None
 
@@ -41,6 +45,7 @@ class Client:
                 timeout=self.timeout,
                 follow_redirects=self.follow_redirects,
                 verify=self.verify_ssl,
+                **self.httpx_args,
             )
         return self._client
 
@@ -66,6 +71,7 @@ class Client:
                 timeout=self.timeout,
                 follow_redirects=self.follow_redirects,
                 verify=self.verify_ssl,
+                **self.httpx_args,
             )
         return self._async_client
 
@@ -74,6 +80,7 @@ class Client:
         if self._async_client is not None and not self._async_client.is_closed:
             try:
                 import asyncio
+
                 asyncio.get_event_loop().run_until_complete(self._async_client.aclose())
             except Exception:
                 pass
@@ -109,7 +116,9 @@ class Client:
         self.get_httpx_client()
         return self
 
-    def __exit__(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover - simple close
+    def __exit__(
+        self, *args: Any, **kwargs: Any
+    ) -> None:  # pragma: no cover - simple close
         if self._client:
             self._client.close()
 
@@ -117,7 +126,9 @@ class Client:
         self.get_async_httpx_client()
         return self
 
-    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover - simple close
+    async def __aexit__(
+        self, *args: Any, **kwargs: Any
+    ) -> None:  # pragma: no cover - simple close
         if self._async_client:
             await self._async_client.aclose()
 
@@ -125,11 +136,22 @@ class Client:
 class AuthenticatedClient(Client):
     """Adds bearer token authentication to :class:`Client`."""
 
-    def __init__(self, *, token: str, base_url: str, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        token: str,
+        base_url: str,
+        httpx_args: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> None:
         headers = dict(kwargs.pop("headers", {}))
         headers.setdefault("Authorization", f"Bearer {token}")
-        super().__init__(base_url=base_url, headers=headers, **kwargs)
+        super().__init__(
+            base_url=base_url, headers=headers, httpx_args=httpx_args, **kwargs
+        )
         self.token = token
+
+
 from .resources.return_resource import Returns
 from .resources.warranty_resource import Warranties
 from .resources.product_resource import Products
@@ -175,6 +197,7 @@ from .resources.schedule_resource import Schedule
 from .resources.ship_to_resource import ShipTo
 from .resources.log_resource import Logs
 
+
 @define
 class Stateset:
     """Main entry point for interacting with the Stateset API.
@@ -190,6 +213,7 @@ class Stateset:
             "https://stateset-proxy-server.stateset.cloud.stateset.app/api",
         )
     )
+    httpx_args: Dict[str, Any] = field(factory=dict)
     _client: Optional[AuthenticatedClient] = field(init=False, default=None)
 
     def __attrs_post_init__(self):
@@ -203,8 +227,9 @@ class Stateset:
             token=self.api_key,
             timeout=Timeout(timeout=30.0),
             follow_redirects=True,
+            httpx_args=self.httpx_args,
         )
-        
+
         # Initialize all resource classes
         self.returns = Returns(self._client)
         self.return_items = ReturnLines(self._client)
@@ -251,29 +276,27 @@ class Stateset:
         self.promotions = Promotions(self._client)
         self.logs = Logs(self._client)
 
-    async def request(self, method: str, path: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def request(
+        self, method: str, path: str, data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Make an authenticated request to the Stateset API.
-        
+
         Args:
             method: HTTP method to use (GET, POST, PUT, DELETE, etc.)
             path: API endpoint path
             data: Optional request body data
-            
+
         Returns:
             API response as a dictionary
         """
         client = self._client.get_async_httpx_client()
-        
+
         try:
-            response = await client.request(
-                method=method,
-                url=path,
-                json=data
-            )
+            response = await client.request(method=method, url=path, json=data)
             raise_for_status_code(response.status_code, response.content)
             return response.json()
-            
+
         except Exception as e:
             print(f"Error in Stateset request: {str(e)}")
             raise
