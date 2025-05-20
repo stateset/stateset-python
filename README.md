@@ -54,6 +54,10 @@ from stateset import Stateset
 client = Stateset()  # configuration taken from the environment
 ```
 
+The SDK automatically sets a ``User-Agent`` header on all requests in the form
+``stateset-python/<version>`` so that your integration can be identified by the
+Stateset API.
+
 By default, when you're calling an HTTPS API it will attempt to verify that SSL is working correctly. Using certificate verification is highly recommended most of the time, but sometimes you may need to authenticate to a server (especially an internal server) using a custom certificate bundle.
 
 ```python

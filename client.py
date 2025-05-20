@@ -1,5 +1,7 @@
 from typing import Optional, Dict, Any, Mapping
 import os
+
+from . import __version__
 import httpx
 from httpx import Timeout
 from attrs import define, field
@@ -22,6 +24,7 @@ class Client:
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.headers = dict(headers or {})
+        self.headers.setdefault("User-Agent", f"stateset-python/{__version__}")
         self.timeout = timeout if isinstance(timeout, Timeout) else Timeout(timeout or 5.0)
         self.follow_redirects = follow_redirects
         self.verify_ssl = verify_ssl
