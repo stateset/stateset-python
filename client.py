@@ -1,11 +1,11 @@
-from typing import Optional, Dict, Any, Mapping
 import os
+from typing import Any, Dict, Mapping, Optional
+
+import httpx
+from attrs import define, field
+from httpx import Timeout
 
 from . import __version__
-import httpx
-from httpx import Timeout
-from attrs import define, field
-
 from .errors import raise_for_status_code
 
 
@@ -164,52 +164,55 @@ class AuthenticatedClient(Client):
         self.token = token
 
 
-from .resources.return_resource import Returns
-from .resources.warranty_resource import Warranties
-from .resources.product_resource import Products
-from .resources.order_resource import Orders
-from .resources.shipment_resource import Shipments
-from .resources.inventory_resource import Inventory
-from .resources.customer_resource import Customers
-from .resources.workorder_resource import WorkOrders
+from .resources.agent_resource import Agents
+from .resources.asset_resource import Assets
+from .resources.attribute_resource import Attributes
 from .resources.bill_of_material_resource import BillOfMaterials
-from .resources.purchase_order_resource import PurchaseOrders
-from .resources.manufacture_order_resource import ManufactureOrders
+from .resources.case_ticket_resource import CaseTickets
 from .resources.channel_resource import Channels
+from .resources.compliance_resource import Compliance
+from .resources.contract_resource import Contracts
+from .resources.customer_resource import Customers
+from .resources.cycle_count_resource import CycleCounts
+from .resources.eval_resource import Evals
+from .resources.inventory_resource import Inventory
+from .resources.invoice_line_resource import InvoiceLines
+from .resources.invoice_resource import Invoices
+from .resources.knowledge_resource import KnowledgeBase
+from .resources.lead_resource import Leads
+from .resources.location_resource import Locations
+from .resources.log_resource import Logs
+from .resources.machine_resource import Machines
+from .resources.manufacture_order_line_resource import ManufactureOrderLines
+from .resources.manufacture_order_resource import ManufactureOrders
 from .resources.message_resource import Messages
 from .resources.note_resource import Notes
-from .resources.case_ticket_resource import CaseTickets
-from .resources.agent_resource import Agents
-from .resources.rule_resource import Rules
-from .resources.attribute_resource import Attributes
-from .resources.workflow_resource import Workflows
-from .resources.user_resource import Users
-from .resources.return_line_resource import ReturnLines
-from .resources.warranty_line_resource import WarrantyLines
 from .resources.order_line_resource import OrderLines
-from .resources.shipment_line_resource import ShipmentLines
-from .resources.workorder_line_resource import WorkOrderLines
-from .resources.purchase_order_line_resource import PurchaseOrderLines
-from .resources.manufacture_order_line_resource import ManufactureOrderLines
-from .resources.settlement_resource import Settlements
+from .resources.order_resource import Orders
 from .resources.payout_resource import Payouts
 from .resources.pick_resource import Picks
-from .resources.cycle_count_resource import CycleCounts
-from .resources.machine_resource import Machines
-from .resources.waste_and_scrap_resource import WasteAndScrap
-from .resources.supplier_resource import Suppliers
-from .resources.location_resource import Locations
-from .resources.vendor_resource import Vendors
-from .resources.invoice_resource import Invoices
-from .resources.invoice_line_resource import InvoiceLines
-from .resources.compliance_resource import Compliance
-from .resources.lead_resource import Leads
-from .resources.asset_resource import Assets
-from .resources.contract_resource import Contracts
+from .resources.product_resource import Products
 from .resources.promotion_resource import Promotions
+from .resources.purchase_order_line_resource import PurchaseOrderLines
+from .resources.purchase_order_resource import PurchaseOrders
+from .resources.response_resource import Responses
+from .resources.return_line_resource import ReturnLines
+from .resources.return_resource import Returns
+from .resources.rule_resource import Rules
 from .resources.schedule_resource import Schedule
+from .resources.settlement_resource import Settlements
 from .resources.ship_to_resource import ShipTo
-from .resources.log_resource import Logs
+from .resources.shipment_line_resource import ShipmentLines
+from .resources.shipment_resource import Shipments
+from .resources.supplier_resource import Suppliers
+from .resources.user_resource import Users
+from .resources.vendor_resource import Vendors
+from .resources.warranty_line_resource import WarrantyLines
+from .resources.warranty_resource import Warranties
+from .resources.waste_and_scrap_resource import WasteAndScrap
+from .resources.workflow_resource import Workflows
+from .resources.workorder_line_resource import WorkOrderLines
+from .resources.workorder_resource import WorkOrders
 
 
 @define
@@ -271,6 +274,9 @@ class Stateset:
         self.agents = Agents(self._client)
         self.rules = Rules(self._client)
         self.attributes = Attributes(self._client)
+        self.responses = Responses(self._client)
+        self.knowledge = KnowledgeBase(self._client)
+        self.evals = Evals(self._client)
         self.workflows = Workflows(self._client)
         self.schedules = Schedule(self._client)
         self.users = Users(self._client)
