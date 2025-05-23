@@ -74,6 +74,16 @@ async with client:
         "items": [{"product_id": "prod_456", "quantity": 1, "price": 10.0}],
         "total_amount": 10.0,
     })
+
+    # Automatically generate a shipping label for the order
+    label = await client.orders.create_shipping_label(
+        order.id,
+        {
+            "carrier": "UPS",
+            "service": "ground",
+            "ship_from": {"postal_code": "94107"},
+        },
+    )
 ```
 
 The SDK automatically sets a ``User-Agent`` header on all requests in the form
