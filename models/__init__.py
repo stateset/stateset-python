@@ -17,6 +17,7 @@ from .notes import Notes
 from .problem import Problem
 from .return_ import Return
 from .return_item import ReturnItem
+from .shipping_label import ShippingLabel
 from .rule import Rule
 from .warranty import Warranty
 from .warranty_item import WarrantyItem
@@ -37,6 +38,7 @@ __all__ = (
     "CaseTicket",
     "Return",
     "ReturnItem",
+    "ShippingLabel",
     "Warranty",
     "WarrantyItem",
     "WorkOrder",
