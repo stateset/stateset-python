@@ -22,6 +22,7 @@ from .warranty import Warranty
 from .warranty_item import WarrantyItem
 from .work_order import WorkOrder
 from .work_order_line_items import WorkOrderLineItems
+from .generic import GenericModel
 
 __all__ = (
     "BillOfMaterials",
@@ -46,4 +47,5 @@ __all__ = (
     "Attribute",
     "Knowledge",
     "Eval",
+    "GenericModel",
 )
