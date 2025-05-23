@@ -26,30 +26,30 @@ Basic usage:
 """
 
 from .client import AuthenticatedClient, Client, Stateset
-from .stateset_types import (
-    StatesetID,
-    Timestamp,
-    Metadata,
-    StatesetObject,
-    OrderStatus,
-    ReturnStatus,
-    WarrantyStatus,
-    PaginationParams,
-    PaginatedList,
-    File,
-    FileUploadError,
-    Response,
-    UNSET,
-)
 from .errors import (
-    StatesetError,
-    StatesetInvalidRequestError,
     StatesetAPIError,
     StatesetAuthenticationError,
-    StatesetPermissionError,
-    StatesetNotFoundError,
     StatesetConnectionError,
+    StatesetError,
+    StatesetInvalidRequestError,
+    StatesetNotFoundError,
+    StatesetPermissionError,
     StatesetRateLimitError,
+)
+from .stateset_types import (
+    UNSET,
+    File,
+    FileUploadError,
+    Metadata,
+    OrderStatus,
+    PaginatedList,
+    PaginationParams,
+    Response,
+    ReturnStatus,
+    StatesetID,
+    StatesetObject,
+    Timestamp,
+    WarrantyStatus,
 )
 
 # Semantic version of the SDK
@@ -110,15 +110,21 @@ logging.getLogger(__name__).addHandler(NullHandler())
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .resources.return_resource import Returns
-    from .resources.warranty_resource import Warranties
-    from .resources.order_resource import Orders
-    from .resources.inventory_resource import Inventory
+    from .resources.agent_resource import Agents
+    from .resources.attribute_resource import Attributes
+    from .resources.case_ticket_resource import CaseTickets
     from .resources.customer_resource import Customers
+    from .resources.eval_resource import Evals
+    from .resources.inventory_resource import Inventory
+    from .resources.knowledge_resource import KnowledgeBase
     from .resources.message_resource import Messages
     from .resources.note_resource import Notes
-    from .resources.case_ticket_resource import CaseTickets
+    from .resources.order_resource import Orders
+    from .resources.response_resource import Responses
     from .resources.return_line_resource import ReturnLines
+    from .resources.return_resource import Returns
+    from .resources.rule_resource import Rules
     from .resources.warranty_line_resource import WarrantyLines
+    from .resources.warranty_resource import Warranties
 
     # Add other resource types as needed
