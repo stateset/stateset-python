@@ -120,6 +120,10 @@ if TYPE_CHECKING:
     from .resources.message_resource import Messages
     from .resources.note_resource import Notes
     from .resources.order_resource import Orders
+    from .resources.fulfillment_order_resource import FulfillmentOrders
+    from .resources.item_receipt_resource import ItemReceipts
+    from .resources.cash_sale_resource import CashSales
+    from .resources.payment_resource import Payments
     from .resources.response_resource import Responses
     from .resources.return_line_resource import ReturnLines
     from .resources.return_resource import Returns
