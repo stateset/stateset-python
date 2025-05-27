@@ -189,6 +189,10 @@ from .resources.message_resource import Messages
 from .resources.note_resource import Notes
 from .resources.order_line_resource import OrderLines
 from .resources.order_resource import Orders
+from .resources.fulfillment_order_resource import FulfillmentOrders
+from .resources.item_receipt_resource import ItemReceipts
+from .resources.cash_sale_resource import CashSales
+from .resources.payment_resource import Payments
 from .resources.payout_resource import Payouts
 from .resources.pick_resource import Picks
 from .resources.product_resource import Products
@@ -282,6 +286,10 @@ class Stateset:
         self.users = Users(self._client)
         self.settlements = Settlements(self._client)
         self.payouts = Payouts(self._client)
+        self.fulfillment_orders = FulfillmentOrders(self._client)
+        self.item_receipts = ItemReceipts(self._client)
+        self.cash_sales = CashSales(self._client)
+        self.payments = Payments(self._client)
         self.picks = Picks(self._client)
         self.cycle_counts = CycleCounts(self._client)
         self.machines = Machines(self._client)
