@@ -120,6 +120,8 @@ Things to know:
 1. All path/query params, and bodies become method arguments.
 1. If your endpoint had any tags on it, the first tag will be used as a module name for the function (my_tag above)
 1. Any endpoint which did not have a tag will be in `stateset_client.api.default`
+1. Every resource class includes an `iter_all` method to iterate through all
+   pages of results, and a `list_all` helper that returns a full list.
 
 ## Advanced customizations
 
