@@ -234,6 +234,19 @@ class Stateset:
             "https://stateset-proxy-server.stateset.cloud.stateset.app/api",
         )
     )
+    timeout: float = field(
+        default_factory=lambda: float(os.getenv("STATESET_TIMEOUT", "30.0"))
+    )
+    follow_redirects: bool = field(
+        default_factory=lambda: os.getenv("STATESET_FOLLOW_REDIRECTS", "true").lower() not in {"0", "false", "no"}
+    )
+    verify_ssl: bool | str = field(
+        default_factory=lambda: (
+            False
+            if os.getenv("STATESET_VERIFY_SSL", "true").lower() in {"0", "false", "no"}
+            else os.getenv("STATESET_VERIFY_SSL", "true")
+        )
+    )
     httpx_args: Dict[str, Any] = field(factory=dict)
     _client: Optional[AuthenticatedClient] = field(init=False, default=None)
 
@@ -243,11 +256,16 @@ class Stateset:
                 "API key is required. Provide it via the 'api_key' argument or the 'STATESET_API_KEY' environment variable."
             )
 
+        proxy = os.getenv("STATESET_HTTPX_PROXIES")
+        if proxy and "proxies" not in self.httpx_args:
+            self.httpx_args["proxies"] = proxy
+
         self._client = AuthenticatedClient(
             base_url=self.base_url,
             token=self.api_key,
-            timeout=Timeout(timeout=30.0),
-            follow_redirects=True,
+            timeout=Timeout(timeout=self.timeout),
+            follow_redirects=self.follow_redirects,
+            verify_ssl=self.verify_ssl,
             httpx_args=self.httpx_args,
         )
 

@@ -10,6 +10,8 @@ Basic usage:
 
     # Initialize the client using environment variables
     # STATESET_API_KEY and optional STATESET_BASE_URL
+    # Additional settings such as STATESET_TIMEOUT or STATESET_VERIFY_SSL
+    # can also be configured through environment variables.
     client = Stateset()
 
     # Make API calls
