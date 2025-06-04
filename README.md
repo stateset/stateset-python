@@ -47,6 +47,12 @@ async with client as client:
 
 The package exposes a convenience :class:`Stateset` class which reads the API key
 from the ``STATESET_API_KEY`` environment variable and optionally ``STATESET_BASE_URL``.
+Additional environment variables allow further configuration:
+
+- ``STATESET_TIMEOUT`` – request timeout in seconds (default ``30``).
+- ``STATESET_FOLLOW_REDIRECTS`` – set to ``false`` to disable following redirects.
+- ``STATESET_VERIFY_SSL`` – set to ``false`` to disable SSL verification or provide a path to a certificate bundle.
+- ``STATESET_HTTPX_PROXIES`` – proxy URL passed to ``httpx``.
 
 ```python
 from stateset import Stateset
