@@ -1,181 +1,573 @@
-# stateset-client
-A client library for accessing Stateset
+# Stateset Python SDK
 
-## Usage
-First, create a client:
+[![PyPI version](https://badge.fury.io/py/stateset.svg)](https://badge.fury.io/py/stateset)
+[![Python versions](https://img.shields.io/pypi/pyversions/stateset.svg)](https://pypi.org/project/stateset/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![codecov](https://codecov.io/gh/stateset/stateset-python/branch/main/graph/badge.svg)](https://codecov.io/gh/stateset/stateset-python)
+[![Tests](https://github.com/stateset/stateset-python/workflows/Test/badge.svg)](https://github.com/stateset/stateset-python/actions)
 
-```python
-from stateset_client import Client
+The official Python client library for the [Stateset API](https://docs.stateset.com). Simplify e-commerce operations with powerful tools for returns, warranties, orders, and inventory management.
 
-client = Client(base_url="https://api.stateset.com")
+## 🚀 Features
+
+- ✅ **Full API Coverage** - Support for all Stateset API endpoints
+- ✅ **Type Safety** - Complete type hints and validation with Pydantic
+- ✅ **Async/Await Support** - Built for modern Python applications
+- ✅ **Automatic Retries** - Intelligent retry logic with exponential backoff
+- ✅ **Rate Limiting** - Built-in rate limit handling
+- ✅ **Pagination** - Seamless iteration through large datasets
+- ✅ **Error Handling** - Comprehensive error types and debugging info
+- ✅ **Environment Configuration** - Easy setup via environment variables
+- ✅ **Context Managers** - Proper resource management
+- ✅ **Query Builder** - Fluent interface for complex queries
+
+## 📦 Installation
+
+```bash
+pip install stateset
 ```
 
-If the endpoints you're going to hit require authentication, use `AuthenticatedClient` instead:
+### Requirements
 
-```python
-from stateset_client import AuthenticatedClient
+- Python 3.8+
+- httpx >= 0.24.0
+- pydantic >= 2.0.0
 
-client = AuthenticatedClient(base_url="https://api.stateset.com", token="SuperSecretToken")
+## 🔧 Quick Start
+
+### Environment Setup
+
+Set your API credentials as environment variables:
+
+```bash
+export STATESET_API_KEY="your_api_key_here"
+export STATESET_BASE_URL="https://api.stateset.com"  # optional
 ```
 
-Now call your endpoint and use your models:
-
-```python
-from stateset_client.models import MyDataModel
-from stateset_client.api.my_tag import get_my_data_model
-from stateset_client.stateset_types import Response
-
-with client as client:
-    my_data: MyDataModel = get_my_data_model.sync(client=client)
-    # or if you need more info (e.g. status_code)
-    response: Response[MyDataModel] = get_my_data_model.sync_detailed(client=client)
-```
-
-Or do the same thing with an async version:
-
-```python
-from stateset_client.models import MyDataModel
-from stateset_client.api.my_tag import get_my_data_model
-from stateset_client.stateset_types import Response
-
-async with client as client:
-    my_data: MyDataModel = await get_my_data_model.asyncio(client=client)
-    response: Response[MyDataModel] = await get_my_data_model.asyncio_detailed(client=client)
-```
-
-### Using the high level `Stateset` client
-
-The package exposes a convenience :class:`Stateset` class which reads the API key
-from the ``STATESET_API_KEY`` environment variable and optionally ``STATESET_BASE_URL``.
-Additional environment variables allow further configuration:
-
-- ``STATESET_TIMEOUT`` – request timeout in seconds (default ``30``).
-- ``STATESET_FOLLOW_REDIRECTS`` – set to ``false`` to disable following redirects.
-- ``STATESET_VERIFY_SSL`` – set to ``false`` to disable SSL verification or provide a path to a certificate bundle.
-- ``STATESET_HTTPX_PROXIES`` – proxy URL passed to ``httpx``.
+### Basic Usage
 
 ```python
 from stateset import Stateset
 
-# configuration taken from the environment
+# Initialize the client (reads from environment variables)
 client = Stateset()
 
-# You can pass extra httpx options if needed
-# client = Stateset(httpx_args={"timeout": 10.0})
-
-# When not using a context manager, close the client explicitly
-client.close()
-```
-
-Once you have a client instance you can access customer service APIs like
-case tickets:
-
-```python
+# Create a new order
 async with client:
-    tickets = await client.case_tickets.list()
-    # Create a new order
     order = await client.orders.create({
         "customer_id": "cust_123",
         "status": "pending",
-        "items": [{"product_id": "prod_456", "quantity": 1, "price": 10.0}],
-        "total_amount": 10.0,
+        "items": [
+            {
+                "product_id": "prod_456",
+                "quantity": 2,
+                "price": 49.99
+            }
+        ],
+        "total_amount": 99.98
     })
+    print(f"Created order: {order.id}")
+```
 
-    # Automatically generate a shipping label for the order
-    label = await client.orders.create_shipping_label(
-        order.id,
-        {
-            "carrier": "UPS",
-            "service": "ground",
-            "ship_from": {"postal_code": "94107"},
-        },
+### Synchronous Usage
+
+While the SDK is built with async/await in mind, you can use it synchronously:
+
+```python
+import asyncio
+from stateset import Stateset
+
+def create_order_sync():
+    async def _create_order():
+        client = Stateset()
+        async with client:
+            return await client.orders.create({
+                "customer_id": "cust_123",
+                "status": "pending",
+                "total_amount": 99.98
+            })
+    
+    return asyncio.run(_create_order())
+
+order = create_order_sync()
+```
+
+## 📚 Core Resources
+
+### Orders
+
+```python
+from stateset import Stateset
+from stateset.base_resource import FilterParams, PaginationParams
+
+async with Stateset() as client:
+    # Create an order
+    order = await client.orders.create({
+        "customer_id": "cust_123",
+        "status": "pending",
+        "total_amount": 99.98
+    })
+    
+    # Get an order
+    order = await client.orders.get("order_123")
+    
+    # Update an order
+    order = await client.orders.update("order_123", {
+        "status": "processing"
+    })
+    
+    # List orders with pagination
+    orders = await client.orders.list(
+        pagination=PaginationParams(page=1, per_page=20),
+        filters=FilterParams(status="pending")
+    )
+    
+    # Query builder approach
+    pending_orders = await client.orders.with_filters(
+        status="pending"
+    ).created_after("2024-01-01").limit(50).all()
+    
+    # Iterate through all orders
+    async for order in client.orders.iter_all():
+        print(f"Order {order.id}: {order.status}")
+```
+
+### Returns
+
+```python
+async with Stateset() as client:
+    # Create a return
+    return_request = await client.returns.create({
+        "order_id": "order_123",
+        "reason": "defective",
+        "items": [
+            {
+                "product_id": "prod_456",
+                "quantity": 1,
+                "reason": "damaged"
+            }
+        ]
+    })
+    
+    # Process a return
+    return_request = await client.returns.update(
+        return_request.id,
+        {"status": "approved"}
+    )
+    
+    # List returns by status
+    approved_returns = await client.returns.with_filters(
+        status="approved"
+    ).sort_by("created", "desc").all()
+```
+
+### Warranties
+
+```python
+async with Stateset() as client:
+    # Create a warranty
+    warranty = await client.warranties.create({
+        "product_id": "prod_456",
+        "customer_id": "cust_123",
+        "start_date": "2024-01-01",
+        "end_date": "2025-01-01"
+    })
+    
+    # Check warranty status
+    warranty = await client.warranties.get("warranty_123")
+    is_active = warranty.status == "active"
+    
+    # List active warranties
+    active_warranties = await client.warranties.with_filters(
+        status="active"
+    ).all()
+```
+
+### Customers
+
+```python
+async with Stateset() as client:
+    # Create a customer
+    customer = await client.customers.create({
+        "email": "customer@example.com",
+        "name": "John Doe",
+        "phone": "+1234567890"
+    })
+    
+    # Get customer with their orders
+    customer = await client.customers.get("cust_123")
+    
+    # Update customer information
+    customer = await client.customers.update("cust_123", {
+        "name": "John Smith"
+    })
+```
+
+## 🔍 Advanced Usage
+
+### Query Builder
+
+The SDK provides a fluent query builder for complex operations:
+
+```python
+from datetime import datetime, timedelta
+
+async with Stateset() as client:
+    # Complex query with method chaining
+    recent_high_value_orders = await client.orders.with_filters(
+        status="completed"
+    ).created_after(
+        (datetime.now() - timedelta(days=30)).isoformat()
+    ).where(
+        total_amount__gte=1000.00
+    ).sort_by("total_amount", "desc").limit(100).all()
+    
+    # Get first matching result
+    latest_order = await client.orders.with_filters(
+        customer_id="cust_123"
+    ).sort_by("created", "desc").first()
+    
+    # Count results without fetching
+    order_count = await client.orders.with_filters(
+        status="pending"
+    ).count()
+```
+
+### Custom Request Options
+
+```python
+from stateset.base_resource import RequestOptions
+
+async with Stateset() as client:
+    # Custom timeout and headers
+    options = RequestOptions(
+        timeout=60.0,
+        headers={"X-Custom-Header": "value"},
+        idempotency_key="unique-key-123"
+    )
+    
+    order = await client.orders.create(
+        {"customer_id": "cust_123", "total_amount": 99.98},
+        options=options
     )
 ```
 
-The SDK automatically sets a ``User-Agent`` header on all requests in the form
-``stateset-python/<version>`` so that your integration can be identified by the
-Stateset API.
-
-By default, when you're calling an HTTPS API it will attempt to verify that SSL is working correctly. Using certificate verification is highly recommended most of the time, but sometimes you may need to authenticate to a server (especially an internal server) using a custom certificate bundle.
+### Error Handling
 
 ```python
-client = AuthenticatedClient(
-    base_url="https://internal_api.stateset.com", 
-    token="SuperSecretToken",
-    verify_ssl="/path/to/certificate_bundle.pem",
+from stateset.errors import (
+    StatesetError,
+    StatesetAPIError,
+    StatesetAuthenticationError,
+    StatesetRateLimitError,
+    StatesetConnectionError
 )
+
+async with Stateset() as client:
+    try:
+        order = await client.orders.get("invalid_id")
+    except StatesetAPIError as e:
+        print(f"API Error: {e.message}")
+        print(f"Status Code: {e.status_code}")
+        print(f"Error Type: {e.type}")
+    except StatesetRateLimitError as e:
+        print(f"Rate limited. Retry after: {e.retry_after}")
+    except StatesetAuthenticationError as e:
+        print(f"Authentication failed: {e.message}")
+    except StatesetConnectionError as e:
+        print(f"Connection error: {e.message}")
+    except StatesetError as e:
+        print(f"General Stateset error: {e.message}")
 ```
 
-You can also disable certificate validation altogether, but beware that **this is a security risk**.
+### Custom Retry Configuration
 
 ```python
-client = AuthenticatedClient(
-    base_url="https://internal_api.stateset.com", 
-    token="SuperSecretToken", 
-    verify_ssl=False
+from stateset import Stateset
+from stateset.client import RetryConfig
+
+# Custom retry configuration
+retry_config = RetryConfig(
+    max_retries=5,
+    backoff_factor=1.0,
+    retry_status_codes=(429, 500, 502, 503, 504)
 )
+
+client = Stateset(retry_config=retry_config)
 ```
 
-Things to know:
-1. Every path/method combo becomes a Python module with four functions:
-    1. `sync`: Blocking request that returns parsed data (if successful) or `None`
-    1. `sync_detailed`: Blocking request that always returns a `Request`, optionally with `parsed` set if the request was successful.
-    1. `asyncio`: Like `sync` but async instead of blocking
-    1. `asyncio_detailed`: Like `sync_detailed` but async instead of blocking
-
-1. All path/query params, and bodies become method arguments.
-1. If your endpoint had any tags on it, the first tag will be used as a module name for the function (my_tag above)
-1. Any endpoint which did not have a tag will be in `stateset_client.api.default`
-1. Every resource class includes an `iter_all` method to iterate through all
-   pages of results, and a `list_all` helper that returns a full list.
-
-## Advanced customizations
-
-There are more settings on the generated `Client` class which let you control more runtime behavior, check out the docstring on that class for more info. You can also customize the underlying `httpx.Client` or `httpx.AsyncClient` (depending on your use-case):
+### Pagination Patterns
 
 ```python
-from stateset_client import Client
+async with Stateset() as client:
+    # Manual pagination
+    page = 1
+    per_page = 50
+    
+    while True:
+        orders = await client.orders.list(
+            pagination=PaginationParams(page=page, per_page=per_page)
+        )
+        
+        for order in orders.data:
+            # Process order
+            print(f"Processing order: {order.id}")
+        
+        if not orders.has_next:
+            break
+        page += 1
+    
+    # Automatic iteration (recommended)
+    async for order in client.orders.iter_all():
+        print(f"Processing order: {order.id}")
+    
+    # Get all results at once (use carefully for large datasets)
+    all_orders = await client.orders.list_all(max_items=1000)
+```
 
-def log_request(request):
-    print(f"Request event hook: {request.method} {request.url} - Waiting for response")
+## ⚙️ Configuration
 
-def log_response(response):
-    request = response.request
-    print(f"Response event hook: {request.method} {request.url} - Status {response.status_code}")
+### Environment Variables
 
-client = Client(
+The SDK supports the following environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `STATESET_API_KEY` | Your Stateset API key | Required |
+| `STATESET_BASE_URL` | API base URL | `https://api.stateset.com` |
+| `STATESET_TIMEOUT` | Request timeout in seconds | `30` |
+| `STATESET_FOLLOW_REDIRECTS` | Follow HTTP redirects | `true` |
+| `STATESET_VERIFY_SSL` | Verify SSL certificates | `true` |
+| `STATESET_HTTPX_PROXIES` | Proxy configuration | None |
+
+### Manual Configuration
+
+```python
+from stateset import Stateset
+
+client = Stateset(
+    api_key="your_api_key",
     base_url="https://api.stateset.com",
-    httpx_args={"event_hooks": {"request": [log_request], "response": [log_response]}},
+    timeout=60.0,
+    verify_ssl=True,
+    httpx_args={"proxies": {"https://": "https://proxy:8080"}}
 )
-
-# Or get the underlying httpx client to modify directly with client.get_httpx_client() or client.get_async_httpx_client()
 ```
 
-You can even set the httpx client directly, but beware that this will override any existing settings (e.g., base_url):
+## 🔒 Security
+
+### API Key Management
+
+Never hardcode your API keys. Use environment variables or a secure credential management system:
+
+```python
+import os
+from stateset import Stateset
+
+# ✅ Good: Use environment variables
+client = Stateset()  # Reads STATESET_API_KEY from environment
+
+# ✅ Good: Use a credential manager
+api_key = get_secret("stateset_api_key")  # Your credential manager
+client = Stateset(api_key=api_key)
+
+# ❌ Bad: Hardcoded API key
+client = Stateset(api_key="sk_live_...")  # Never do this!
+```
+
+### SSL Configuration
+
+For development or testing with self-signed certificates:
+
+```python
+# Disable SSL verification (not recommended for production)
+client = Stateset(verify_ssl=False)
+
+# Use custom certificate bundle
+client = Stateset(verify_ssl="/path/to/cert/bundle.pem")
+```
+
+## 🧪 Testing
+
+The SDK includes comprehensive test coverage and utilities for testing your integration:
+
+### Mock Testing
+
+```python
+import pytest
+from unittest.mock import AsyncMock, patch
+from stateset import Stateset
+
+@pytest.mark.asyncio
+async def test_order_creation():
+    with patch('stateset.client.AuthenticatedClient') as mock_client:
+        mock_client.return_value.post = AsyncMock(return_value={
+            "id": "order_123",
+            "status": "pending",
+            "total_amount": 99.98
+        })
+        
+        client = Stateset()
+        order = await client.orders.create({
+            "customer_id": "cust_123",
+            "total_amount": 99.98
+        })
+        
+        assert order.id == "order_123"
+        assert order.status == "pending"
+```
+
+### Integration Testing
+
+```python
+import pytest
+from stateset import Stateset
+import os
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_real_api_integration():
+    # Only run if test API key is available
+    if not os.getenv("STATESET_TEST_API_KEY"):
+        pytest.skip("Test API key not available")
+    
+    client = Stateset(api_key=os.getenv("STATESET_TEST_API_KEY"))
+    
+    async with client:
+        # Test creating and retrieving an order
+        order = await client.orders.create({
+            "customer_id": "test_customer",
+            "total_amount": 10.00
+        })
+        
+        retrieved_order = await client.orders.get(order.id)
+        assert retrieved_order.id == order.id
+```
+
+## 📈 Performance Tips
+
+### Connection Pooling
+
+The SDK automatically manages connection pooling through httpx. For high-throughput applications:
+
+```python
+# The client maintains connection pools automatically
+async with Stateset() as client:
+    # Multiple requests will reuse connections
+    for i in range(100):
+        order = await client.orders.get(f"order_{i}")
+```
+
+### Batch Operations
+
+```python
+import asyncio
+from stateset import Stateset
+
+async def process_orders_batch(order_ids):
+    client = Stateset()
+    async with client:
+        # Process multiple orders concurrently
+        tasks = [client.orders.get(order_id) for order_id in order_ids]
+        orders = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Handle results and exceptions
+        for i, result in enumerate(orders):
+            if isinstance(result, Exception):
+                print(f"Failed to fetch order {order_ids[i]}: {result}")
+            else:
+                print(f"Order {result.id}: {result.status}")
+
+# Process orders in batches of 10
+order_ids = ["order_1", "order_2", "order_3", ...]
+for i in range(0, len(order_ids), 10):
+    batch = order_ids[i:i+10]
+    await process_orders_batch(batch)
+```
+
+## 🐛 Debugging
+
+### Enable Debug Logging
+
+```python
+import logging
+from stateset import Stateset
+
+# Enable debug logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("stateset")
+logger.setLevel(logging.DEBUG)
+
+client = Stateset()
+```
+
+### Request/Response Logging
 
 ```python
 import httpx
-from stateset_client import Client
+from stateset import Stateset
 
-client = Client(
-    base_url="https://api.stateset.com",
+def log_request(request):
+    print(f"Request: {request.method} {request.url}")
+
+def log_response(response):
+    print(f"Response: {response.status_code}")
+
+client = Stateset(
+    httpx_args={
+        "event_hooks": {
+            "request": [log_request],
+            "response": [log_response]
+        }
+    }
 )
-# Note that base_url needs to be re-set, as would any shared cookies, headers, etc.
-client.set_httpx_client(httpx.Client(base_url="https://api.stateset.com", proxies="http://localhost:8030"))
-async_client = httpx.AsyncClient(base_url="https://api.stateset.com", proxies="http://localhost:8030")
-client.set_async_httpx_client(async_client)
 ```
 
-## Building / publishing this package
-This project uses [Poetry](https://python-poetry.org/) to manage dependencies  and packaging.  Here are the basics:
-1. Update the metadata in pyproject.toml (e.g. authors, version)
-1. If you're using a private repository, configure it with Poetry
-    1. `poetry config repositories.<your-repository-name> <url-to-your-repository>`
-    1. `poetry config http-basic.<your-repository-name> <username> <password>`
-1. Publish the client with `poetry publish --build -r <your-repository-name>` or, if for public PyPI, just `poetry publish --build`
+## 🤝 Contributing
 
-If you want to install this client into another project without publishing it (e.g. for development) then:
-1. If that project **is using Poetry**, you can simply do `poetry add <path-to-this-client>` from that project
-1. If that project is not using Poetry:
-    1. Build a wheel with `poetry build -f wheel`
-    1. Install that wheel from the other project `pip install <path-to-wheel>`
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/stateset/stateset-python.git
+cd stateset-python
+
+# Install development dependencies
+pip install -e .[dev]
+
+# Install pre-commit hooks
+pre-commit install
+
+# Run tests
+pytest
+
+# Run linting
+ruff check .
+black --check .
+mypy stateset
+```
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🔗 Links
+
+- [Stateset API Documentation](https://docs.stateset.com)
+- [SDK Documentation](https://stateset-python.readthedocs.io)
+- [PyPI Package](https://pypi.org/project/stateset/)
+- [GitHub Repository](https://github.com/stateset/stateset-python)
+- [Issue Tracker](https://github.com/stateset/stateset-python/issues)
+
+## 📞 Support
+
+- 📧 Email: [support@stateset.com](mailto:support@stateset.com)
+- 💬 Discord: [Stateset Community](https://discord.gg/stateset)
+- 📖 Documentation: [docs.stateset.com](https://docs.stateset.com)
+- 🐛 Bug Reports: [GitHub Issues](https://github.com/stateset/stateset-python/issues)
+
+---
+
+Made with ❤️ by the [Stateset](https://stateset.com) team.
