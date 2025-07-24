@@ -1,97 +1,288 @@
-"""A Python client library for accessing the Stateset API
+"""
+Stateset Python SDK - Enhanced version with advanced features.
 
-This library provides a convenient interface to interact with the Stateset API,
-offering support for all Stateset resources including returns, warranties, orders,
-inventory management, and more.
+A comprehensive Python client library for the Stateset API with:
+- Full async/await support
+- Advanced query building and filtering  
+- Intelligent caching and performance optimization
+- Comprehensive error handling with debugging context
+- Bulk operations and batch processing
+- Request/response monitoring and metrics
+- Developer-friendly utilities and tools
 
-Basic usage:
-    ```python
-    from stateset import Stateset
+Basic Usage:
+    >>> from stateset import Stateset
+    >>> async with Stateset() as client:
+    ...     orders = await client.orders.list()
+    ...     order = await client.orders.create({
+    ...         "customer_id": "cust_123",
+    ...         "total_amount": 99.99
+    ...     })
 
-    # Initialize the client using environment variables
-    # STATESET_API_KEY and optional STATESET_BASE_URL
-    # Additional settings such as STATESET_TIMEOUT or STATESET_VERIFY_SSL
-    # can also be configured through environment variables.
-    client = Stateset()
+Advanced Usage:
+    >>> # Query building with advanced filtering
+    >>> high_value_orders = await client.orders.high_value(1000).recent(30).all()
+    >>> 
+    >>> # Bulk operations
+    >>> result = await client.orders.bulk_create([...])
+    >>> 
+    >>> # Performance monitoring
+    >>> metrics = client.get_performance_metrics()
+    >>> print(f"Success rate: {metrics.success_rate:.2%}")
 
-    # Make API calls
-    async with client:
-        # Get a list of returns
-        returns = await client.returns.list()
+Environment Variables:
+    - STATESET_API_KEY: Your API key (required)
+    - STATESET_BASE_URL: API base URL (default: https://api.stateset.com)
+    - STATESET_TIMEOUT: Request timeout in seconds (default: 30)
+    - STATESET_DEBUG: Enable debug logging (default: false)
+    - STATESET_VERIFY_SSL: SSL verification (default: true)
 
-        # Create a new order
-        order = await client.orders.create({
-            "customer_id": "cust_123",
-            "items": [{"product_id": "prod_456", "quantity": 1}]
-        })
-    ```
+For detailed documentation, visit: https://docs.stateset.com/python-sdk
 """
 
-from .client import AuthenticatedClient, Client, Stateset
+from typing import TYPE_CHECKING
+
+# Core client classes
+from .client import (
+    Stateset,
+    AuthenticatedClient,
+    Client,
+    RetryConfig,
+    PerformanceMetrics,
+    RequestContext,
+)
+
+# Base resource system with enhanced features
+from .base_resource import (
+    BaseResource,
+    ResourceQuery,
+    FilterParams,
+    FilterOperator,
+    FilterExpression,
+    RequestOptions,
+    BulkOperationResult,
+)
+
+# Comprehensive error handling
 from .errors import (
+    StatesetError,
+    StatesetValidationError,
+    StatesetInvalidRequestError,
     StatesetAPIError,
     StatesetAuthenticationError,
-    StatesetConnectionError,
-    StatesetError,
-    StatesetInvalidRequestError,
-    StatesetNotFoundError,
     StatesetPermissionError,
+    StatesetNotFoundError,
+    StatesetConnectionError,
+    StatesetTimeoutError,
     StatesetRateLimitError,
+    StatesetMaintenanceError,
+    StatesetDeprecationWarning,
+    raise_for_status_code,
 )
+
+# Type definitions and utilities
 from .stateset_types import (
-    UNSET,
-    File,
-    FileUploadError,
-    Metadata,
-    OrderStatus,
     PaginatedList,
     PaginationParams,
-    Response,
-    ReturnStatus,
-    StatesetID,
     StatesetObject,
-    Timestamp,
+    OrderStatus,
+    ReturnStatus,
     WarrantyStatus,
+    UNSET,
+    UnsetType,
 )
 
-# Semantic version of the SDK
-__version__ = "1.1.0"
+# Version information
+from . import __version__
 
-# API version supported by this SDK
-__api_version__ = "2024-01"
+if TYPE_CHECKING:
+    # Resource imports for type checking only
+    from .resources.order_resource import Orders
+    from .resources.return_resource import Returns
+    from .resources.warranty_resource import Warranties
+    from .resources.customer_resource import Customers
 
+# Package metadata
+__title__ = "stateset"
+__description__ = "Enhanced Python client for the Stateset API"
+__url__ = "https://github.com/stateset/stateset-python"
+__author__ = "Stateset Team"
+__author_email__ = "support@stateset.com"
+__license__ = "MIT"
+__copyright__ = "Copyright 2024 Stateset"
+
+# Convenience aliases for common use cases
+StatesetClient = Stateset  # Alternative name for the main client
+
+# Default configuration values
+DEFAULT_BASE_URL = "https://api.stateset.com"
+DEFAULT_TIMEOUT = 30.0
+DEFAULT_RETRY_ATTEMPTS = 3
+DEFAULT_PAGINATION_LIMIT = 50
+MAX_PAGINATION_LIMIT = 1000
+
+# Feature flags for experimental features
+EXPERIMENTAL_FEATURES = {
+    "enhanced_caching": True,
+    "bulk_operations": True,
+    "performance_metrics": True,
+    "request_hooks": True,
+}
+
+# SDK information for debugging and support
+SDK_INFO = {
+    "name": __title__,
+    "version": __version__,
+    "description": __description__,
+    "url": __url__,
+    "author": __author__,
+    "license": __license__,
+}
+
+
+def get_sdk_info() -> dict:
+    """Get SDK information for debugging and support."""
+    return SDK_INFO.copy()
+
+
+def enable_debug_logging():
+    """Enable debug logging for the SDK."""
+    import logging
+    
+    # Set up comprehensive logging
+    logger = logging.getLogger("stateset")
+    logger.setLevel(logging.DEBUG)
+    
+    # Create console handler if none exists
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    
+    print("✓ Stateset SDK debug logging enabled")
+
+
+def disable_debug_logging():
+    """Disable debug logging for the SDK."""
+    import logging
+    
+    logger = logging.getLogger("stateset")
+    logger.setLevel(logging.WARNING)
+    
+    print("✓ Stateset SDK debug logging disabled")
+
+
+def check_environment():
+    """Check environment configuration and provide recommendations."""
+    import os
+    
+    print("Stateset SDK Environment Check")
+    print("=" * 40)
+    
+    # Check API key
+    api_key = os.getenv("STATESET_API_KEY")
+    if api_key:
+        masked_key = f"{api_key[:8]}..." if len(api_key) > 8 else "***"
+        print(f"✓ API Key: {masked_key}")
+    else:
+        print("✗ API Key: Not set (required)")
+        print("  Set STATESET_API_KEY environment variable")
+    
+    # Check base URL
+    base_url = os.getenv("STATESET_BASE_URL", DEFAULT_BASE_URL)
+    print(f"✓ Base URL: {base_url}")
+    
+    # Check timeout
+    timeout = os.getenv("STATESET_TIMEOUT", str(DEFAULT_TIMEOUT))
+    print(f"✓ Timeout: {timeout}s")
+    
+    # Check debug mode
+    debug = os.getenv("STATESET_DEBUG", "false").lower() == "true"
+    print(f"✓ Debug Mode: {'Enabled' if debug else 'Disabled'}")
+    
+    # Check SSL verification
+    ssl_verify = os.getenv("STATESET_VERIFY_SSL", "true")
+    print(f"✓ SSL Verification: {ssl_verify}")
+    
+    print()
+    print("SDK Information:")
+    print(f"  Version: {__version__}")
+    print(f"  Documentation: https://docs.stateset.com/python-sdk")
+    print(f"  Support: {__author_email__}")
+
+
+# Export all public symbols
 __all__ = [
-    # Main client
+    # Core client
     "Stateset",
-    # Base clients
-    "AuthenticatedClient",
+    "StatesetClient",
+    "AuthenticatedClient", 
     "Client",
-    # Types
-    "StatesetID",
-    "Timestamp",
-    "Metadata",
-    "StatesetObject",
-    "OrderStatus",
-    "ReturnStatus",
-    "WarrantyStatus",
-    "PaginationParams",
-    "PaginatedList",
-    "File",
-    "FileUploadError",
-    "Response",
-    "UNSET",
-    # Errors
+    "RetryConfig",
+    "PerformanceMetrics",
+    "RequestContext",
+    
+    # Base resource system
+    "BaseResource",
+    "ResourceQuery", 
+    "FilterParams",
+    "FilterOperator",
+    "FilterExpression",
+    "RequestOptions",
+    "BulkOperationResult",
+    
+    # Error handling
     "StatesetError",
+    "StatesetValidationError",
     "StatesetInvalidRequestError",
-    "StatesetAPIError",
+    "StatesetAPIError", 
     "StatesetAuthenticationError",
     "StatesetPermissionError",
     "StatesetNotFoundError",
     "StatesetConnectionError",
+    "StatesetTimeoutError",
     "StatesetRateLimitError",
-    # Version info
+    "StatesetMaintenanceError",
+    "StatesetDeprecationWarning",
+    "raise_for_status_code",
+    
+    # Types and utilities
+    "PaginatedList",
+    "PaginationParams",
+    "StatesetObject",
+    "OrderStatus",
+    "ReturnStatus", 
+    "WarrantyStatus",
+    "UNSET",
+    "UnsetType",
+    
+    # Utilities
+    "get_sdk_info",
+    "enable_debug_logging",
+    "disable_debug_logging",
+    "check_environment",
+    
+    # Constants
+    "DEFAULT_BASE_URL",
+    "DEFAULT_TIMEOUT",
+    "DEFAULT_RETRY_ATTEMPTS",
+    "DEFAULT_PAGINATION_LIMIT",
+    "MAX_PAGINATION_LIMIT",
+    "SDK_INFO",
+    "EXPERIMENTAL_FEATURES",
+    
+    # Version
     "__version__",
-    "__api_version__",
+    "__title__",
+    "__description__",
+    "__url__",
+    "__author__",
+    "__author_email__",
+    "__license__",
+    "__copyright__",
 ]
 
 # Set default logging handler to avoid "No handler found" warnings.

@@ -4,9 +4,12 @@ Enhanced base resource class with improved pagination, filtering, and modern Pyt
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, AsyncIterator, Union
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, AsyncIterator, Union, Callable
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
 
 from .client import AuthenticatedClient
 from .stateset_types import PaginatedList, PaginationParams
@@ -17,9 +20,41 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
+class FilterOperator(str, Enum):
+    """Filter operators for advanced querying."""
+    EQUALS = "eq"
+    NOT_EQUALS = "ne"
+    GREATER_THAN = "gt"
+    GREATER_THAN_EQUAL = "gte"
+    LESS_THAN = "lt"
+    LESS_THAN_EQUAL = "lte"
+    IN = "in"
+    NOT_IN = "not_in"
+    CONTAINS = "contains"
+    STARTS_WITH = "starts_with"
+    ENDS_WITH = "ends_with"
+    IS_NULL = "is_null"
+    IS_NOT_NULL = "is_not_null"
+
+
+@dataclass
+class FilterExpression:
+    """Represents a filter expression with field, operator, and value."""
+    field: str
+    operator: FilterOperator
+    value: Any
+    
+    def to_query_param(self) -> tuple[str, Any]:
+        """Convert to query parameter format."""
+        if self.operator == FilterOperator.EQUALS:
+            return (self.field, self.value)
+        else:
+            return (f"{self.field}__{self.operator.value}", self.value)
+
+
 @dataclass
 class FilterParams:
-    """Parameters for filtering API requests."""
+    """Enhanced parameters for filtering API requests."""
     
     # Common filter parameters
     created_after: Optional[str] = None
@@ -28,8 +63,27 @@ class FilterParams:
     updated_before: Optional[str] = None
     status: Optional[str] = None
     
+    # Advanced filtering expressions
+    expressions: List[FilterExpression] = field(default_factory=list)
+    
     # Custom filters (can be extended by subclasses)
     custom_filters: Dict[str, Any] = field(default_factory=dict)
+    
+    # Search functionality
+    search_query: Optional[str] = None
+    search_fields: List[str] = field(default_factory=list)
+    
+    def add_filter(self, field: str, operator: FilterOperator, value: Any) -> "FilterParams":
+        """Add a filter expression."""
+        self.expressions.append(FilterExpression(field, operator, value))
+        return self
+    
+    def search(self, query: str, fields: List[str] = None) -> "FilterParams":
+        """Add search query."""
+        self.search_query = query
+        if fields:
+            self.search_fields = fields
+        return self
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert filter parameters to dictionary for API requests."""
@@ -46,6 +100,17 @@ class FilterParams:
         if self.status:
             params["status"] = self.status
             
+        # Add filter expressions
+        for expr in self.expressions:
+            key, value = expr.to_query_param()
+            params[key] = value
+            
+        # Add search parameters
+        if self.search_query:
+            params["q"] = self.search_query
+            if self.search_fields:
+                params["search_fields"] = ",".join(self.search_fields)
+        
         # Add custom filters
         params.update(self.custom_filters)
         
@@ -55,11 +120,19 @@ class FilterParams:
 
 @dataclass
 class RequestOptions:
-    """Options for customizing API requests."""
+    """Enhanced options for customizing API requests."""
     
     timeout: Optional[float] = None
     headers: Optional[Dict[str, str]] = None
     idempotency_key: Optional[str] = None
+    
+    # Performance options
+    include_fields: Optional[List[str]] = None
+    exclude_fields: Optional[List[str]] = None
+    
+    # Caching options
+    cache_ttl: Optional[int] = None
+    force_refresh: bool = False
     
     def to_kwargs(self) -> Dict[str, Any]:
         """Convert options to httpx request kwargs."""
@@ -72,10 +145,41 @@ class RequestOptions:
         if self.idempotency_key:
             headers["Idempotency-Key"] = self.idempotency_key
             
+        # Field selection headers
+        if self.include_fields:
+            headers["X-Include-Fields"] = ",".join(self.include_fields)
+        if self.exclude_fields:
+            headers["X-Exclude-Fields"] = ",".join(self.exclude_fields)
+            
+        # Cache control headers
+        if self.force_refresh:
+            headers["Cache-Control"] = "no-cache"
+        elif self.cache_ttl:
+            headers["Cache-Control"] = f"max-age={self.cache_ttl}"
+            
         if headers:
             kwargs["headers"] = headers
             
         return kwargs
+
+
+@dataclass
+class BulkOperationResult:
+    """Result of a bulk operation."""
+    success_count: int
+    error_count: int
+    errors: List[Dict[str, Any]] = field(default_factory=list)
+    successful_ids: List[str] = field(default_factory=list)
+    
+    @property
+    def total_count(self) -> int:
+        return self.success_count + self.error_count
+    
+    @property
+    def success_rate(self) -> float:
+        if self.total_count == 0:
+            return 0.0
+        return self.success_count / self.total_count
 
 
 class BaseResource(Generic[T]):
@@ -87,13 +191,17 @@ class BaseResource(Generic[T]):
         object_class: Type[T], 
         base_path: str,
         default_limit: int = 50,
-        max_limit: int = 1000
+        max_limit: int = 1000,
+        enable_caching: bool = False
     ) -> None:
         self.client = client
         self.object_class = object_class
         self.base_path = base_path.rstrip("/")
         self.default_limit = default_limit
         self.max_limit = max_limit
+        self.enable_caching = enable_caching
+        self._cache: Dict[str, Any] = {}
+        self._cache_timestamps: Dict[str, datetime] = {}
 
     def _validate_pagination_params(self, params: PaginationParams) -> None:
         """Validate pagination parameters."""
@@ -137,6 +245,33 @@ class BaseResource(Generic[T]):
         
         return params
 
+    def _get_cache_key(self, operation: str, **params: Any) -> str:
+        """Generate cache key for an operation."""
+        key_parts = [operation]
+        for k, v in sorted(params.items()):
+            key_parts.append(f"{k}={v}")
+        return "|".join(key_parts)
+
+    def _is_cache_valid(self, cache_key: str, ttl: int = 300) -> bool:
+        """Check if cached data is still valid."""
+        if cache_key not in self._cache_timestamps:
+            return False
+        
+        age = datetime.now() - self._cache_timestamps[cache_key]
+        return age.total_seconds() < ttl
+
+    def _set_cache(self, cache_key: str, data: Any) -> None:
+        """Store data in cache."""
+        if self.enable_caching:
+            self._cache[cache_key] = data
+            self._cache_timestamps[cache_key] = datetime.now()
+
+    def _get_cache(self, cache_key: str) -> Optional[Any]:
+        """Retrieve data from cache."""
+        if self.enable_caching and cache_key in self._cache:
+            return self._cache[cache_key]
+        return None
+
     async def list(
         self, 
         pagination: Optional[PaginationParams] = None,
@@ -159,6 +294,13 @@ class BaseResource(Generic[T]):
         query_params = self._build_query_params(pagination, filters, **kwargs)
         request_kwargs = options.to_kwargs() if options else {}
         
+        # Check cache if enabled
+        cache_key = self._get_cache_key("list", **query_params)
+        if not (options and options.force_refresh):
+            cached_data = self._get_cache(cache_key)
+            if cached_data and self._is_cache_valid(cache_key):
+                return cached_data
+
         try:
             response = await self.client.get(
                 path=self.base_path, 
@@ -170,7 +312,7 @@ class BaseResource(Generic[T]):
             if isinstance(response, list):
                 # Simple array response
                 data = [self.object_class(**item) for item in response]
-                return PaginatedList(
+                result = PaginatedList(
                     data=data,
                     total=len(data),
                     page=1,
@@ -182,7 +324,7 @@ class BaseResource(Generic[T]):
             else:
                 # Object response with pagination metadata
                 data = [self.object_class(**item) for item in response.get("data", [])]
-                return PaginatedList(
+                result = PaginatedList(
                     data=data,
                     total=response.get("total", len(data)),
                     page=response.get("page", 1),
@@ -191,6 +333,10 @@ class BaseResource(Generic[T]):
                     has_next=response.get("has_next", False),
                     has_prev=response.get("has_prev", False),
                 )
+            
+            # Cache result
+            self._set_cache(cache_key, result)
+            return result
 
         except Exception as e:
             logger.error(f"Failed to list {self.object_class.__name__}: {e}")
@@ -216,6 +362,13 @@ class BaseResource(Generic[T]):
         if not id:
             raise StatesetInvalidRequestError("Resource ID is required")
             
+        # Check cache if enabled
+        cache_key = self._get_cache_key("get", id=id, **kwargs)
+        if not (options and options.force_refresh):
+            cached_data = self._get_cache(cache_key)
+            if cached_data and self._is_cache_valid(cache_key):
+                return cached_data
+            
         request_kwargs = options.to_kwargs() if options else {}
         if kwargs:
             request_kwargs["params"] = kwargs
@@ -225,7 +378,11 @@ class BaseResource(Generic[T]):
                 f"{self.base_path}/{id}",
                 **request_kwargs
             )
-            return self.object_class(**response)
+            result = self.object_class(**response)
+            
+            # Cache result
+            self._set_cache(cache_key, result)
+            return result
 
         except Exception as e:
             logger.error(f"Failed to get {self.object_class.__name__} {id}: {e}")
@@ -257,7 +414,12 @@ class BaseResource(Generic[T]):
                 json=data,
                 **request_kwargs
             )
-            return self.object_class(**response)
+            result = self.object_class(**response)
+            
+            # Invalidate relevant caches
+            self._invalidate_list_caches()
+            
+            return result
 
         except Exception as e:
             logger.error(f"Failed to create {self.object_class.__name__}: {e}")
@@ -293,7 +455,12 @@ class BaseResource(Generic[T]):
                 json=data,
                 **request_kwargs
             )
-            return self.object_class(**response)
+            result = self.object_class(**response)
+            
+            # Invalidate caches for this resource
+            self._invalidate_resource_caches(id)
+            
+            return result
 
         except Exception as e:
             logger.error(f"Failed to update {self.object_class.__name__} {id}: {e}")
@@ -321,10 +488,158 @@ class BaseResource(Generic[T]):
                 f"{self.base_path}/{id}",
                 **request_kwargs
             )
+            
+            # Invalidate caches for this resource
+            self._invalidate_resource_caches(id)
 
         except Exception as e:
             logger.error(f"Failed to delete {self.object_class.__name__} {id}: {e}")
             raise
+
+    async def bulk_create(
+        self,
+        items: List[Dict[str, Any]],
+        options: Optional[RequestOptions] = None,
+        batch_size: int = 100
+    ) -> BulkOperationResult:
+        """
+        Create multiple resources in bulk.
+        
+        Args:
+            items: List of resource data dictionaries
+            options: Request options
+            batch_size: Number of items per batch
+            
+        Returns:
+            BulkOperationResult with success/error counts
+        """
+        if not items:
+            raise StatesetInvalidRequestError("Items list cannot be empty")
+        
+        total_success = 0
+        total_errors = 0
+        all_errors = []
+        successful_ids = []
+        
+        # Process in batches
+        for i in range(0, len(items), batch_size):
+            batch = items[i:i + batch_size]
+            
+            try:
+                request_kwargs = options.to_kwargs() if options else {}
+                response = await self.client.post(
+                    f"{self.base_path}/bulk",
+                    json={"items": batch},
+                    **request_kwargs
+                )
+                
+                # Handle bulk response
+                if "results" in response:
+                    for result in response["results"]:
+                        if result.get("success"):
+                            total_success += 1
+                            if "id" in result:
+                                successful_ids.append(result["id"])
+                        else:
+                            total_errors += 1
+                            all_errors.append(result.get("error", {}))
+                else:
+                    # Fallback: create items individually
+                    batch_results = await self._bulk_create_fallback(batch, options)
+                    total_success += batch_results.success_count
+                    total_errors += batch_results.error_count
+                    all_errors.extend(batch_results.errors)
+                    successful_ids.extend(batch_results.successful_ids)
+                    
+            except Exception as e:
+                logger.warning(f"Bulk create batch failed, falling back to individual creates: {e}")
+                batch_results = await self._bulk_create_fallback(batch, options)
+                total_success += batch_results.success_count
+                total_errors += batch_results.error_count
+                all_errors.extend(batch_results.errors)
+                successful_ids.extend(batch_results.successful_ids)
+        
+        # Invalidate relevant caches
+        self._invalidate_list_caches()
+        
+        return BulkOperationResult(
+            success_count=total_success,
+            error_count=total_errors,
+            errors=all_errors,
+            successful_ids=successful_ids
+        )
+
+    async def _bulk_create_fallback(
+        self,
+        items: List[Dict[str, Any]],
+        options: Optional[RequestOptions] = None
+    ) -> BulkOperationResult:
+        """Fallback method for bulk create using individual API calls."""
+        success_count = 0
+        error_count = 0
+        errors = []
+        successful_ids = []
+        
+        tasks = []
+        for item in items:
+            tasks.append(self._safe_create(item, options))
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                error_count += 1
+                errors.append({
+                    "index": i,
+                    "error": str(result),
+                    "item": items[i]
+                })
+            else:
+                success_count += 1
+                if hasattr(result, 'id'):
+                    successful_ids.append(result.id)
+        
+        return BulkOperationResult(
+            success_count=success_count,
+            error_count=error_count,
+            errors=errors,
+            successful_ids=successful_ids
+        )
+
+    async def _safe_create(
+        self, 
+        data: Dict[str, Any], 
+        options: Optional[RequestOptions] = None
+    ) -> Optional[T]:
+        """Safely create a resource, returning None on error."""
+        try:
+            return await self.create(data, options)
+        except Exception as e:
+            logger.debug(f"Failed to create individual item: {e}")
+            raise
+
+    def _invalidate_list_caches(self) -> None:
+        """Invalidate all list-related caches."""
+        if not self.enable_caching:
+            return
+            
+        keys_to_remove = [k for k in self._cache.keys() if k.startswith("list|")]
+        for key in keys_to_remove:
+            self._cache.pop(key, None)
+            self._cache_timestamps.pop(key, None)
+
+    def _invalidate_resource_caches(self, resource_id: str) -> None:
+        """Invalidate caches for a specific resource."""
+        if not self.enable_caching:
+            return
+            
+        # Invalidate specific resource cache
+        get_key = f"get|id={resource_id}"
+        self._cache.pop(get_key, None)
+        self._cache_timestamps.pop(get_key, None)
+        
+        # Invalidate list caches
+        self._invalidate_list_caches()
 
     async def iter_all(
         self,
@@ -414,10 +729,22 @@ class BaseResource(Generic[T]):
         Returns:
             Total count of matching resources
         """
-        # Get first page to access total count
-        pagination = PaginationParams(page=1, per_page=1)
-        page = await self.list(pagination, filters, options, **kwargs)
-        return page.total
+        # Check if API supports direct count endpoint
+        try:
+            query_params = self._build_query_params(filters=filters, **kwargs)
+            request_kwargs = options.to_kwargs() if options else {}
+            
+            response = await self.client.get(
+                f"{self.base_path}/count",
+                params=query_params,
+                **request_kwargs
+            )
+            return response.get("count", 0)
+        except Exception:
+            # Fallback: Get first page to access total count
+            pagination = PaginationParams(page=1, per_page=1)
+            page = await self.list(pagination, filters, options, **kwargs)
+            return page.total
 
     async def exists(
         self,
@@ -452,9 +779,18 @@ class BaseResource(Generic[T]):
         """
         return ResourceQuery(self, FilterParams(custom_filters=filters))
 
+    def query(self) -> "ResourceQuery[T]":
+        """
+        Create a fresh query builder for this resource.
+        
+        Returns:
+            ResourceQuery instance for method chaining
+        """
+        return ResourceQuery(self, FilterParams())
+
 
 class ResourceQuery(Generic[T]):
-    """Query builder for resource operations with method chaining."""
+    """Enhanced query builder for resource operations with method chaining."""
     
     def __init__(self, resource: BaseResource[T], filters: FilterParams):
         self.resource = resource
@@ -463,8 +799,18 @@ class ResourceQuery(Generic[T]):
         self.options = RequestOptions()
     
     def where(self, **filters: Any) -> "ResourceQuery[T]":
-        """Add filter conditions."""
+        """Add filter conditions using equals operator."""
         self.filters.custom_filters.update(filters)
+        return self
+    
+    def filter(self, field: str, operator: FilterOperator, value: Any) -> "ResourceQuery[T]":
+        """Add advanced filter with specific operator."""
+        self.filters.add_filter(field, operator, value)
+        return self
+    
+    def search(self, query: str, fields: List[str] = None) -> "ResourceQuery[T]":
+        """Add search query."""
+        self.filters.search(query, fields)
         return self
     
     def created_after(self, date: str) -> "ResourceQuery[T]":
@@ -477,9 +823,30 @@ class ResourceQuery(Generic[T]):
         self.filters.created_before = date
         return self
     
+    def updated_after(self, date: str) -> "ResourceQuery[T]":
+        """Filter by update date (after)."""
+        self.filters.updated_after = date
+        return self
+    
+    def updated_before(self, date: str) -> "ResourceQuery[T]":
+        """Filter by update date (before)."""
+        self.filters.updated_before = date
+        return self
+    
+    def created_between(self, start_date: str, end_date: str) -> "ResourceQuery[T]":
+        """Filter by creation date range."""
+        self.filters.created_after = start_date
+        self.filters.created_before = end_date
+        return self
+    
     def status(self, status: str) -> "ResourceQuery[T]":
         """Filter by status."""
         self.filters.status = status
+        return self
+    
+    def status_in(self, statuses: List[str]) -> "ResourceQuery[T]":
+        """Filter by multiple statuses."""
+        self.filters.add_filter("status", FilterOperator.IN, statuses)
         return self
     
     def limit(self, count: int) -> "ResourceQuery[T]":
@@ -498,9 +865,32 @@ class ResourceQuery(Generic[T]):
         self.pagination.sort_order = order
         return self
     
+    def sort_desc(self, field: str) -> "ResourceQuery[T]":
+        """Sort results by field in descending order."""
+        return self.sort_by(field, "desc")
+    
+    def sort_asc(self, field: str) -> "ResourceQuery[T]":
+        """Sort results by field in ascending order."""
+        return self.sort_by(field, "asc")
+    
     def timeout(self, seconds: float) -> "ResourceQuery[T]":
         """Set request timeout."""
         self.options.timeout = seconds
+        return self
+    
+    def include_fields(self, *fields: str) -> "ResourceQuery[T]":
+        """Include only specific fields in response."""
+        self.options.include_fields = list(fields)
+        return self
+    
+    def exclude_fields(self, *fields: str) -> "ResourceQuery[T]":
+        """Exclude specific fields from response."""
+        self.options.exclude_fields = list(fields)
+        return self
+    
+    def force_refresh(self) -> "ResourceQuery[T]":
+        """Force refresh from server, bypassing cache."""
+        self.options.force_refresh = True
         return self
     
     async def all(self) -> List[T]:
@@ -521,9 +911,65 @@ class ResourceQuery(Generic[T]):
         )
         return results.data[0] if results.data else None
     
+    async def last(self) -> Optional[T]:
+        """Execute query and return last result."""
+        # First get count to find last page
+        total = await self.count()
+        if total == 0:
+            return None
+            
+        per_page = self.pagination.per_page or self.resource.default_limit
+        last_page = (total - 1) // per_page + 1
+        
+        self.pagination.page = last_page
+        self.pagination.per_page = per_page
+        
+        results = await self.resource.list(
+            pagination=self.pagination,
+            filters=self.filters,
+            options=self.options
+        )
+        return results.data[-1] if results.data else None
+    
+    async def get(self, index: int) -> Optional[T]:
+        """Get item at specific index."""
+        per_page = self.pagination.per_page or self.resource.default_limit
+        page = (index // per_page) + 1
+        page_index = index % per_page
+        
+        self.pagination.page = page
+        self.pagination.per_page = per_page
+        
+        results = await self.resource.list(
+            pagination=self.pagination,
+            filters=self.filters,
+            options=self.options
+        )
+        
+        if page_index < len(results.data):
+            return results.data[page_index]
+        return None
+    
     async def count(self) -> int:
         """Execute query and return count."""
         return await self.resource.count(
+            filters=self.filters,
+            options=self.options
+        )
+    
+    async def exists(self) -> bool:
+        """Check if any results exist for this query."""
+        count = await self.count()
+        return count > 0
+    
+    async def paginate(self, page: int = 1, per_page: int = None) -> PaginatedList[T]:
+        """Execute query with pagination."""
+        self.pagination.page = page
+        if per_page:
+            self.pagination.per_page = per_page
+            
+        return await self.resource.list(
+            pagination=self.pagination,
             filters=self.filters,
             options=self.options
         )

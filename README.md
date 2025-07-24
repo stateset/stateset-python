@@ -6,20 +6,28 @@
 [![codecov](https://codecov.io/gh/stateset/stateset-python/branch/main/graph/badge.svg)](https://codecov.io/gh/stateset/stateset-python)
 [![Tests](https://github.com/stateset/stateset-python/workflows/Test/badge.svg)](https://github.com/stateset/stateset-python/actions)
 
-The official Python client library for the [Stateset API](https://docs.stateset.com). Simplify e-commerce operations with powerful tools for returns, warranties, orders, and inventory management.
+The **official Python client library** for the [Stateset API](https://docs.stateset.com). A world-class, enterprise-ready SDK that simplifies e-commerce operations with powerful tools for returns, warranties, orders, and inventory management.
 
 ## 🚀 Features
 
+### Core Functionality
 - ✅ **Full API Coverage** - Support for all Stateset API endpoints
 - ✅ **Type Safety** - Complete type hints and validation with Pydantic
 - ✅ **Async/Await Support** - Built for modern Python applications
-- ✅ **Automatic Retries** - Intelligent retry logic with exponential backoff
-- ✅ **Rate Limiting** - Built-in rate limit handling
-- ✅ **Pagination** - Seamless iteration through large datasets
-- ✅ **Error Handling** - Comprehensive error types and debugging info
 - ✅ **Environment Configuration** - Easy setup via environment variables
 - ✅ **Context Managers** - Proper resource management
-- ✅ **Query Builder** - Fluent interface for complex queries
+
+### Advanced Features
+- 🎯 **Smart Query Builder** - Fluent interface for complex queries with advanced filtering
+- 🚀 **Bulk Operations** - Efficient batch processing with automatic fallbacks
+- 📊 **Performance Monitoring** - Built-in metrics and request/response tracking
+- 🧠 **Intelligent Caching** - Optional caching with TTL and invalidation strategies
+- 🔄 **Enhanced Retry Logic** - Exponential backoff with configurable policies
+- ⚡ **Rate Limiting** - Built-in rate limit handling with automatic waiting
+- 🎯 **Advanced Pagination** - Seamless iteration through large datasets
+- 🐛 **Rich Error Handling** - Comprehensive error types with debugging context
+- 🔍 **Request Hooks** - Monitor and debug requests with custom hooks
+- 🛠️ **Developer Tools** - Built-in profiling, logging, and diagnostic utilities
 
 ## 📦 Installation
 
@@ -42,6 +50,7 @@ Set your API credentials as environment variables:
 ```bash
 export STATESET_API_KEY="your_api_key_here"
 export STATESET_BASE_URL="https://api.stateset.com"  # optional
+export STATESET_DEBUG="true"  # optional, for debugging
 ```
 
 ### Basic Usage
@@ -50,10 +59,8 @@ export STATESET_BASE_URL="https://api.stateset.com"  # optional
 from stateset import Stateset
 
 # Initialize the client (reads from environment variables)
-client = Stateset()
-
-# Create a new order
-async with client:
+async with Stateset() as client:
+    # Create a new order
     order = await client.orders.create({
         "customer_id": "cust_123",
         "status": "pending",
@@ -69,222 +76,252 @@ async with client:
     print(f"Created order: {order.id}")
 ```
 
-### Synchronous Usage
-
-While the SDK is built with async/await in mind, you can use it synchronously:
+### Advanced Query Building
 
 ```python
-import asyncio
-from stateset import Stateset
+from datetime import datetime, timedelta
+from stateset import FilterOperator
 
-def create_order_sync():
-    async def _create_order():
-        client = Stateset()
-        async with client:
-            return await client.orders.create({
-                "customer_id": "cust_123",
-                "status": "pending",
-                "total_amount": 99.98
-            })
+async with Stateset() as client:
+    # Complex query with method chaining
+    high_value_recent_orders = await client.orders.query() \
+        .status_in(["completed", "processing"]) \
+        .filter("total_amount", FilterOperator.GREATER_THAN_EQUAL, 1000.00) \
+        .created_after((datetime.now() - timedelta(days=30)).isoformat()) \
+        .sort_desc("total_amount") \
+        .limit(100) \
+        .all()
     
-    return asyncio.run(_create_order())
+    # Use convenience methods
+    recent_orders = await client.orders.recent(days=7).high_value(500).all()
+    
+    # Search with full-text search
+    product_orders = await client.orders.query() \
+        .search("iPhone", fields=["items.product_name"]) \
+        .all()
+```
 
-order = create_order_sync()
+### Bulk Operations
+
+```python
+# Bulk create orders with automatic error handling
+order_data = [
+    {"customer_id": "cust_1", "total_amount": 100.00},
+    {"customer_id": "cust_2", "total_amount": 200.00},
+    # ... more orders
+]
+
+result = await client.orders.bulk_create(order_data, batch_size=50)
+print(f"Created {result.success_count} orders, {result.error_count} errors")
+
+# Handle errors
+for error in result.errors:
+    print(f"Error: {error['error']} for item {error['index']}")
+```
+
+### Performance Monitoring
+
+```python
+# Enable performance tracking
+client = Stateset(enable_metrics=True)
+
+async with client:
+    # Perform operations
+    await client.orders.list()
+    await client.customers.create({...})
+    
+    # Get performance metrics
+    metrics = client.get_performance_metrics()
+    print(f"Success rate: {metrics.success_rate:.2%}")
+    print(f"Average response time: {metrics.average_response_time:.3f}s")
+    print(f"Cache hit rate: {metrics.cache_hit_rate:.2%}")
 ```
 
 ## 📚 Core Resources
 
-### Orders
+### Enhanced Orders Operations
 
 ```python
-from stateset import Stateset
-from stateset.base_resource import FilterParams, PaginationParams
-
 async with Stateset() as client:
-    # Create an order
+    # Advanced order operations
     order = await client.orders.create({
         "customer_id": "cust_123",
-        "status": "pending",
-        "total_amount": 99.98
+        "total_amount": 299.99
     })
     
-    # Get an order
-    order = await client.orders.get("order_123")
-    
-    # Update an order
-    order = await client.orders.update("order_123", {
-        "status": "processing"
-    })
-    
-    # List orders with pagination
-    orders = await client.orders.list(
-        pagination=PaginationParams(page=1, per_page=20),
-        filters=FilterParams(status="pending")
+    # Mark as shipped with tracking
+    await client.orders.mark_as_shipped(
+        order.id,
+        tracking_number="1Z999AA1234567890",
+        carrier="UPS",
+        shipped_at=datetime.now()
     )
     
-    # Query builder approach
-    pending_orders = await client.orders.with_filters(
-        status="pending"
-    ).created_after("2024-01-01").limit(50).all()
-    
-    # Iterate through all orders
-    async for order in client.orders.iter_all():
-        print(f"Order {order.id}: {order.status}")
-```
-
-### Returns
-
-```python
-async with Stateset() as client:
-    # Create a return
-    return_request = await client.returns.create({
-        "order_id": "order_123",
-        "reason": "defective",
-        "items": [
-            {
-                "product_id": "prod_456",
-                "quantity": 1,
-                "reason": "damaged"
-            }
-        ]
-    })
-    
-    # Process a return
-    return_request = await client.returns.update(
-        return_request.id,
-        {"status": "approved"}
+    # Process refund
+    refund = await client.orders.refund(
+        order.id,
+        amount=50.00,  # Partial refund
+        reason="Customer satisfaction"
     )
     
-    # List returns by status
-    approved_returns = await client.returns.with_filters(
-        status="approved"
-    ).sort_by("created", "desc").all()
+    # Bulk status updates
+    await client.orders.bulk_update_status(
+        ["order_1", "order_2", "order_3"],
+        "processing"
+    )
+    
+    # Get daily statistics
+    stats = await client.orders.get_daily_stats("2024-01-15")
 ```
 
-### Warranties
+### Smart Filtering and Search
 
 ```python
+from stateset import FilterOperator
+
 async with Stateset() as client:
-    # Create a warranty
-    warranty = await client.warranties.create({
-        "product_id": "prod_456",
-        "customer_id": "cust_123",
-        "start_date": "2024-01-01",
-        "end_date": "2025-01-01"
-    })
+    # Advanced filtering with operators
+    expensive_orders = await client.orders.query() \
+        .filter("total_amount", FilterOperator.GREATER_THAN, 1000) \
+        .filter("status", FilterOperator.IN, ["completed", "processing"]) \
+        .created_between("2024-01-01", "2024-12-31") \
+        .all()
     
-    # Check warranty status
-    warranty = await client.warranties.get("warranty_123")
-    is_active = warranty.status == "active"
+    # Geographic filtering
+    us_customers = await client.customers.query() \
+        .filter("address.country", FilterOperator.EQUALS, "US") \
+        .filter("address.state", FilterOperator.IN, ["CA", "NY", "TX"]) \
+        .all()
     
-    # List active warranties
-    active_warranties = await client.warranties.with_filters(
-        status="active"
-    ).all()
+    # Text search across multiple fields
+    product_returns = await client.returns.query() \
+        .search("defective iPhone", fields=["reason", "notes"]) \
+        .status("approved") \
+        .all()
 ```
 
-### Customers
+### Enhanced Error Handling
 
 ```python
-async with Stateset() as client:
-    # Create a customer
-    customer = await client.customers.create({
-        "email": "customer@example.com",
-        "name": "John Doe",
-        "phone": "+1234567890"
-    })
+from stateset import (
+    StatesetValidationError,
+    StatesetRateLimitError,
+    StatesetAuthenticationError
+)
+
+try:
+    order = await client.orders.create(invalid_data)
+except StatesetValidationError as e:
+    print(f"Validation failed: {e.message}")
+    print("Debugging info:")
+    print(e.get_debug_info())
     
-    # Get customer with their orders
-    customer = await client.customers.get("cust_123")
+    # Check specific field errors
+    if e.has_field_error("customer_id"):
+        print(f"Customer ID errors: {e.get_field_error('customer_id')}")
+        
+except StatesetRateLimitError as e:
+    print(f"Rate limited. Retry after: {e.retry_after} seconds")
     
-    # Update customer information
-    customer = await client.customers.update("cust_123", {
-        "name": "John Smith"
-    })
+except StatesetAuthenticationError as e:
+    print(f"Auth error: {e.message}")
+    for suggestion in e.suggestions:
+        print(f"  • {suggestion}")
 ```
 
 ## 🔍 Advanced Usage
 
-### Query Builder
-
-The SDK provides a fluent query builder for complex operations:
+### Request Monitoring and Hooks
 
 ```python
-from datetime import datetime, timedelta
+from stateset import RequestContext
 
-async with Stateset() as client:
-    # Complex query with method chaining
-    recent_high_value_orders = await client.orders.with_filters(
-        status="completed"
-    ).created_after(
-        (datetime.now() - timedelta(days=30)).isoformat()
-    ).where(
-        total_amount__gte=1000.00
-    ).sort_by("total_amount", "desc").limit(100).all()
-    
-    # Get first matching result
-    latest_order = await client.orders.with_filters(
-        customer_id="cust_123"
-    ).sort_by("created", "desc").first()
-    
-    # Count results without fetching
-    order_count = await client.orders.with_filters(
-        status="pending"
-    ).count()
+def log_slow_requests(ctx: RequestContext, response):
+    if ctx.duration.total_seconds() > 1.0:
+        print(f"Slow request: {ctx.method} {ctx.url} ({ctx.duration.total_seconds():.2f}s)")
+
+def log_errors(ctx: RequestContext, error: Exception):
+    print(f"Request failed: {ctx.method} {ctx.url} - {error}")
+
+client = Stateset()
+client.add_response_hook(log_slow_requests)
+client.add_error_hook(log_errors)
 ```
 
-### Custom Request Options
+### Intelligent Caching
 
 ```python
 from stateset.base_resource import RequestOptions
 
-async with Stateset() as client:
-    # Custom timeout and headers
-    options = RequestOptions(
-        timeout=60.0,
-        headers={"X-Custom-Header": "value"},
-        idempotency_key="unique-key-123"
-    )
+# Enable caching for specific resource
+orders = Orders(client, enable_caching=True)
+
+# Cache for 5 minutes
+options = RequestOptions(cache_ttl=300)
+order = await client.orders.get("order_123", options=options)
+
+# Force refresh bypassing cache
+fresh_order = await client.orders.query().force_refresh().get("order_123")
+```
+
+### Developer Tools and Debugging
+
+```python
+from stateset.dev_tools import profiled_client, logged_client, run_diagnostics
+
+# Automatic profiling
+async with profiled_client() as (client, profiler):
+    await client.orders.list()
+    await client.customers.create({...})
     
-    order = await client.orders.create(
-        {"customer_id": "cust_123", "total_amount": 99.98},
-        options=options
-    )
-```
+    profiler.print_summary()
 
-### Error Handling
+# Enhanced logging
+async with logged_client(log_level="DEBUG") as client:
+    await client.orders.list()  # All requests logged
 
-```python
-from stateset.errors import (
-    StatesetError,
-    StatesetAPIError,
-    StatesetAuthenticationError,
-    StatesetRateLimitError,
-    StatesetConnectionError
-)
-
+# Run diagnostics
 async with Stateset() as client:
-    try:
-        order = await client.orders.get("invalid_id")
-    except StatesetAPIError as e:
-        print(f"API Error: {e.message}")
-        print(f"Status Code: {e.status_code}")
-        print(f"Error Type: {e.type}")
-    except StatesetRateLimitError as e:
-        print(f"Rate limited. Retry after: {e.retry_after}")
-    except StatesetAuthenticationError as e:
-        print(f"Authentication failed: {e.message}")
-    except StatesetConnectionError as e:
-        print(f"Connection error: {e.message}")
-    except StatesetError as e:
-        print(f"General Stateset error: {e.message}")
+    results = await run_diagnostics(client)
+    print(f"API Health: {results['connectivity']['status']}")
 ```
 
-### Custom Retry Configuration
+### Environment Configuration Utilities
 
 ```python
-from stateset import Stateset
-from stateset.client import RetryConfig
+import stateset
+
+# Check your environment setup
+stateset.check_environment()
+
+# Enable debug logging
+stateset.enable_debug_logging()
+
+# Get SDK information
+info = stateset.get_sdk_info()
+print(f"SDK Version: {info['version']}")
+```
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+The SDK supports comprehensive configuration via environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `STATESET_API_KEY` | Your Stateset API key | Required |
+| `STATESET_BASE_URL` | API base URL | `https://api.stateset.com` |
+| `STATESET_TIMEOUT` | Request timeout in seconds | `30` |
+| `STATESET_DEBUG` | Enable debug logging | `false` |
+| `STATESET_FOLLOW_REDIRECTS` | Follow HTTP redirects | `true` |
+| `STATESET_VERIFY_SSL` | Verify SSL certificates | `true` |
+| `STATESET_HTTPX_PROXIES` | Proxy configuration | None |
+
+### Manual Configuration
+
+```python
+from stateset import Stateset, RetryConfig
 
 # Custom retry configuration
 retry_config = RetryConfig(
@@ -293,72 +330,95 @@ retry_config = RetryConfig(
     retry_status_codes=(429, 500, 502, 503, 504)
 )
 
-client = Stateset(retry_config=retry_config)
-```
-
-### Pagination Patterns
-
-```python
-async with Stateset() as client:
-    # Manual pagination
-    page = 1
-    per_page = 50
-    
-    while True:
-        orders = await client.orders.list(
-            pagination=PaginationParams(page=page, per_page=per_page)
-        )
-        
-        for order in orders.data:
-            # Process order
-            print(f"Processing order: {order.id}")
-        
-        if not orders.has_next:
-            break
-        page += 1
-    
-    # Automatic iteration (recommended)
-    async for order in client.orders.iter_all():
-        print(f"Processing order: {order.id}")
-    
-    # Get all results at once (use carefully for large datasets)
-    all_orders = await client.orders.list_all(max_items=1000)
-```
-
-## ⚙️ Configuration
-
-### Environment Variables
-
-The SDK supports the following environment variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `STATESET_API_KEY` | Your Stateset API key | Required |
-| `STATESET_BASE_URL` | API base URL | `https://api.stateset.com` |
-| `STATESET_TIMEOUT` | Request timeout in seconds | `30` |
-| `STATESET_FOLLOW_REDIRECTS` | Follow HTTP redirects | `true` |
-| `STATESET_VERIFY_SSL` | Verify SSL certificates | `true` |
-| `STATESET_HTTPX_PROXIES` | Proxy configuration | None |
-
-### Manual Configuration
-
-```python
-from stateset import Stateset
-
 client = Stateset(
     api_key="your_api_key",
     base_url="https://api.stateset.com",
     timeout=60.0,
-    verify_ssl=True,
-    httpx_args={"proxies": {"https://": "https://proxy:8080"}}
+    enable_metrics=True,
+    debug=True,
+    retry_config=retry_config
 )
 ```
 
-## 🔒 Security
+## 🧪 Testing and Development
+
+### Mock Data Generation
+
+```python
+from stateset.dev_tools import MockDataGenerator
+
+# Generate test data
+order_data = MockDataGenerator.generate_order(
+    customer_id="test_customer",
+    total_amount=150.00
+)
+
+customer_data = MockDataGenerator.generate_customer(
+    email="test@example.com"
+)
+
+# Use in tests
+test_order = await client.orders.create(order_data)
+```
+
+### Testing Utilities
+
+```python
+import pytest
+from stateset.dev_tools import create_test_suite
+
+@pytest.mark.asyncio
+async def test_api_integration():
+    async with Stateset() as client:
+        test_suite = create_test_suite(client)
+        
+        # Test connectivity
+        connectivity_result = await test_suite["connectivity"]()
+        assert connectivity_result["status"] == "healthy"
+        
+        # Test authentication
+        auth_result = await test_suite["authentication"]()
+        assert auth_result["status"] == "authenticated"
+```
+
+## 📈 Performance Optimization
+
+### Connection Pooling and Caching
+
+```python
+# The SDK automatically manages connection pooling
+# Enable caching for frequently accessed data
+client = Stateset()
+
+# Cache frequently accessed orders
+orders_with_cache = Orders(client, enable_caching=True)
+```
+
+### Batch Processing Best Practices
+
+```python
+# Process large datasets efficiently
+async def process_all_orders():
+    async with Stateset() as client:
+        # Stream through all orders without loading everything into memory
+        async for order in client.orders.query().status("pending"):
+            await process_order(order)
+        
+        # Or process in batches
+        page = 1
+        while True:
+            orders = await client.orders.query().page(page).limit(100).paginate()
+            if not orders.data:
+                break
+                
+            # Process batch
+            await process_order_batch(orders.data)
+            page += 1
+```
+
+## 🔒 Security Best Practices
 
 ### API Key Management
-
-Never hardcode your API keys. Use environment variables or a secure credential management system:
 
 ```python
 import os
@@ -368,159 +428,24 @@ from stateset import Stateset
 client = Stateset()  # Reads STATESET_API_KEY from environment
 
 # ✅ Good: Use a credential manager
-api_key = get_secret("stateset_api_key")  # Your credential manager
-client = Stateset(api_key=api_key)
+def get_api_key():
+    # Your secure credential retrieval logic
+    return retrieve_from_vault("stateset_api_key")
+
+client = Stateset(api_key=get_api_key())
 
 # ❌ Bad: Hardcoded API key
-client = Stateset(api_key="sk_live_...")  # Never do this!
+# client = Stateset(api_key="sk_live_...")  # Never do this!
 ```
 
-### SSL Configuration
-
-For development or testing with self-signed certificates:
+### Secure Request Logging
 
 ```python
-# Disable SSL verification (not recommended for production)
-client = Stateset(verify_ssl=False)
+from stateset.dev_tools import RequestLogger
 
-# Use custom certificate bundle
-client = Stateset(verify_ssl="/path/to/cert/bundle.pem")
-```
-
-## 🧪 Testing
-
-The SDK includes comprehensive test coverage and utilities for testing your integration:
-
-### Mock Testing
-
-```python
-import pytest
-from unittest.mock import AsyncMock, patch
-from stateset import Stateset
-
-@pytest.mark.asyncio
-async def test_order_creation():
-    with patch('stateset.client.AuthenticatedClient') as mock_client:
-        mock_client.return_value.post = AsyncMock(return_value={
-            "id": "order_123",
-            "status": "pending",
-            "total_amount": 99.98
-        })
-        
-        client = Stateset()
-        order = await client.orders.create({
-            "customer_id": "cust_123",
-            "total_amount": 99.98
-        })
-        
-        assert order.id == "order_123"
-        assert order.status == "pending"
-```
-
-### Integration Testing
-
-```python
-import pytest
-from stateset import Stateset
-import os
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_real_api_integration():
-    # Only run if test API key is available
-    if not os.getenv("STATESET_TEST_API_KEY"):
-        pytest.skip("Test API key not available")
-    
-    client = Stateset(api_key=os.getenv("STATESET_TEST_API_KEY"))
-    
-    async with client:
-        # Test creating and retrieving an order
-        order = await client.orders.create({
-            "customer_id": "test_customer",
-            "total_amount": 10.00
-        })
-        
-        retrieved_order = await client.orders.get(order.id)
-        assert retrieved_order.id == order.id
-```
-
-## 📈 Performance Tips
-
-### Connection Pooling
-
-The SDK automatically manages connection pooling through httpx. For high-throughput applications:
-
-```python
-# The client maintains connection pools automatically
-async with Stateset() as client:
-    # Multiple requests will reuse connections
-    for i in range(100):
-        order = await client.orders.get(f"order_{i}")
-```
-
-### Batch Operations
-
-```python
-import asyncio
-from stateset import Stateset
-
-async def process_orders_batch(order_ids):
-    client = Stateset()
-    async with client:
-        # Process multiple orders concurrently
-        tasks = [client.orders.get(order_id) for order_id in order_ids]
-        orders = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Handle results and exceptions
-        for i, result in enumerate(orders):
-            if isinstance(result, Exception):
-                print(f"Failed to fetch order {order_ids[i]}: {result}")
-            else:
-                print(f"Order {result.id}: {result.status}")
-
-# Process orders in batches of 10
-order_ids = ["order_1", "order_2", "order_3", ...]
-for i in range(0, len(order_ids), 10):
-    batch = order_ids[i:i+10]
-    await process_orders_batch(batch)
-```
-
-## 🐛 Debugging
-
-### Enable Debug Logging
-
-```python
-import logging
-from stateset import Stateset
-
-# Enable debug logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger("stateset")
-logger.setLevel(logging.DEBUG)
-
-client = Stateset()
-```
-
-### Request/Response Logging
-
-```python
-import httpx
-from stateset import Stateset
-
-def log_request(request):
-    print(f"Request: {request.method} {request.url}")
-
-def log_response(response):
-    print(f"Response: {response.status_code}")
-
-client = Stateset(
-    httpx_args={
-        "event_hooks": {
-            "request": [log_request],
-            "response": [log_response]
-        }
-    }
-)
+# Automatically mask sensitive information
+logger = RequestLogger(mask_sensitive=True)
+client.add_request_hook(logger.log_request)
 ```
 
 ## 🤝 Contributing
@@ -542,6 +467,9 @@ pre-commit install
 
 # Run tests
 pytest
+
+# Run with coverage
+pytest --cov=stateset --cov-report=html
 
 # Run linting
 ruff check .
@@ -567,6 +495,33 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 💬 Discord: [Stateset Community](https://discord.gg/stateset)
 - 📖 Documentation: [docs.stateset.com](https://docs.stateset.com)
 - 🐛 Bug Reports: [GitHub Issues](https://github.com/stateset/stateset-python/issues)
+
+## 🎯 What's New in v1.1.0
+
+### 🚀 Major Enhancements
+
+- **Advanced Query Builder** - Fluent interface with 15+ filter operators
+- **Bulk Operations** - Efficient batch processing with automatic fallbacks
+- **Performance Monitoring** - Built-in metrics tracking success rates and response times
+- **Intelligent Caching** - Optional caching with TTL and smart invalidation
+- **Enhanced Error Handling** - Rich error context with debugging information and suggestions
+- **Developer Tools** - Profiling, logging, and diagnostic utilities
+- **Request Hooks** - Monitor and customize request/response behavior
+
+### 🎯 Improved Developer Experience
+
+- **Better Type Safety** - Comprehensive type hints and validation
+- **Rich Error Messages** - Actionable error messages with suggestions
+- **Environment Utilities** - Easy environment checking and configuration
+- **Mock Data Generators** - Built-in test data generation
+- **Comprehensive Documentation** - Examples for every feature
+
+### ⚡ Performance Improvements
+
+- **Smart Rate Limiting** - Automatic rate limit detection and waiting
+- **Connection Pooling** - Optimized HTTP connection management
+- **Streaming Support** - Memory-efficient iteration over large datasets
+- **Concurrent Operations** - Bulk operations with proper error isolation
 
 ---
 
