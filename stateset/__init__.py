@@ -43,7 +43,7 @@ For detailed documentation, visit: https://docs.stateset.com/python-sdk
 from typing import TYPE_CHECKING
 
 # Core client classes
-from .stateset.client import (
+from .client import (
     Stateset,
     AuthenticatedClient,
     Client,
@@ -53,7 +53,7 @@ from .stateset.client import (
 )
 
 # Base resource system with enhanced features
-from .stateset.base_resource import (
+from .base_resource import (
     BaseResource,
     ResourceQuery,
     FilterParams,
@@ -64,7 +64,7 @@ from .stateset.base_resource import (
 )
 
 # Comprehensive error handling
-from .stateset.errors import (
+from .errors import (
     StatesetError,
     StatesetValidationError,
     StatesetInvalidRequestError,
@@ -81,7 +81,7 @@ from .stateset.errors import (
 )
 
 # Type definitions and utilities
-from .stateset.stateset_types import (
+from .stateset_types import (
     PaginatedList,
     PaginationParams,
     StatesetObject,
@@ -93,7 +93,7 @@ from .stateset.stateset_types import (
 )
 
 # Version information
-from .stateset.version import __version__
+from .version import __version__
 
 if TYPE_CHECKING:
     # Resource imports for type checking only
@@ -299,7 +299,6 @@ except ImportError:
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
-# Type checking
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -325,3 +324,4 @@ if TYPE_CHECKING:
     from .resources.warranty_resource import Warranties
 
     # Add other resource types as needed
+
