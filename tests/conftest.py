@@ -59,11 +59,7 @@ def mock_httpx_client() -> Generator[Mock, None, None]:
     yield mock_client
 
 
-@pytest.fixture
-def httpx_mock() -> Generator[pytest_httpx.HTTPXMock, None, None]:
-    """Create an httpx mock for testing HTTP requests."""
-    with pytest_httpx.HTTPXMock() as mock:
-        yield mock
+# Do not override built-in httpx_mock fixture provided by pytest_httpx; rely on it directly
 
 
 @pytest.fixture
