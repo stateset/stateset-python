@@ -64,15 +64,17 @@ class StatesetError(Exception):
         message = data.get("message", "Unknown error")
 
         error_class = ERROR_TYPE_MAPPING.get(error_type, cls)
-        return error_class(
-            message=message,
-            error_type=error_type,
-            code=data.get("code"),
-            detail=data.get("detail"),
-            path=data.get("path"),
-            status_code=status_code,
-            raw_response=data,
-        )
+        kwargs = {
+            "code": data.get("code"),
+            "detail": data.get("detail"),
+            "path": data.get("path"),
+            "status_code": status_code,
+            "raw_response": data,
+        }
+        if error_class is cls:
+            kwargs["error_type"] = error_type
+
+        return error_class(message=message, **kwargs)
 
 
 class StatesetInvalidRequestError(StatesetError):

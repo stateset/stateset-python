@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "stateset-python"
@@ -31,7 +31,6 @@ keywords = [
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
@@ -124,3 +123,9 @@ addopts = [
     "--cov-report=html",
     "--cov-report=xml",
 ]
+
+[tool.setuptools.packages.find]
+include = ["stateset*"]
+
+[tool.setuptools.package-data]
+stateset = ["py.typed"]
