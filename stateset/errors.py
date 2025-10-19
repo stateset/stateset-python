@@ -171,4 +171,18 @@ def raise_for_status_code(
             status_code=status_code,
         )
 
+    if status_code == 429 and not isinstance(error, StatesetRateLimitError):
+        if isinstance(error, StatesetError):
+            message = error.args[0] if error.args else "Rate limit exceeded"
+            raw_response = error.raw_response
+        else:
+            message = str(error) or "Rate limit exceeded"
+            raw_response = None
+        error = StatesetRateLimitError(
+            message=message,
+            status_code=status_code,
+            retry_after=None,
+            raw_response=raw_response,
+        )
+
     raise error

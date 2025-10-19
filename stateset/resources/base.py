@@ -17,10 +17,12 @@ class CollectionResource:
         return await self._client.request("GET", f"{self._resource_path}/{resource_id}")
 
     async def create(self, payload: Mapping[str, Any]) -> Any:
-        return await self._client.request("POST", self._resource_path, dict(payload))
+        return await self._client.request("POST", self._resource_path, json=dict(payload))
 
     async def update(self, resource_id: str, payload: Mapping[str, Any]) -> Any:
-        return await self._client.request("PUT", f"{self._resource_path}/{resource_id}", dict(payload))
+        return await self._client.request(
+            "PUT", f"{self._resource_path}/{resource_id}", json=dict(payload)
+        )
 
     async def delete(self, resource_id: str) -> None:
         await self._client.request("DELETE", f"{self._resource_path}/{resource_id}")

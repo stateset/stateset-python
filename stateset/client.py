@@ -3,12 +3,12 @@ from __future__ import annotations
 import asyncio
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, Mapping, MutableMapping, Optional, Sequence
+from typing import Any, Dict, Mapping, MutableMapping, Optional, Sequence
 
 import httpx
 
 from ._version import __version__
-from .errors import StatesetConnectionError, StatesetRateLimitError, raise_for_status_code
+from .errors import StatesetConnectionError, raise_for_status_code
 from .resources import GenericResource, Inventory, Orders, Returns, Warranties, Workflows
 
 DEFAULT_BASE_URL = "https://api.stateset.com"
@@ -75,6 +75,8 @@ class _AsyncRequestor:
         json: Optional[Any] = None,
         headers: Optional[Mapping[str, str]] = None,
         expected: Optional[Sequence[int]] = None,
+        content: Optional[bytes] = None,
+        files: Optional[Mapping[str, Any]] = None,
     ) -> Any:
         expected_statuses = set(expected) if expected else set(range(200, 300))
         merged_headers = self._merge_headers(headers)
@@ -87,6 +89,9 @@ class _AsyncRequestor:
                     url=path,
                     params=params,
                     json=json,
+                    data=data,
+                    content=content,
+                    files=files,
                     headers=merged_headers,
                 )
             except httpx.TimeoutException as exc:
@@ -143,11 +148,6 @@ class _AsyncRequestor:
                     delay = self._compute_backoff(attempts)
                 await asyncio.sleep(delay)
                 return
-            raise StatesetRateLimitError(
-                retry_after=None,
-                message="Rate limit exceeded",
-                status_code=response.status_code,
-            )
         await asyncio.sleep(self._compute_backoff(attempts))
 
     def _compute_backoff(self, attempts: int) -> float:
@@ -235,6 +235,8 @@ class Stateset:
         json: Optional[Any] = None,
         headers: Optional[Mapping[str, str]] = None,
         expected: Optional[Sequence[int]] = None,
+        content: Optional[bytes] = None,
+        files: Optional[Mapping[str, Any]] = None,
     ) -> Any:
         """
         Execute a raw API request against the Stateset service.
@@ -246,16 +248,53 @@ class Stateset:
             json: JSON-serialisable request body for write operations.
             headers: Additional headers to merge with the defaults.
             expected: Optional list of acceptable status codes.
+            content: Raw byte content to send without JSON encoding.
+            files: Optional multipart/form-data mapping passed to ``httpx``.
         """
 
-        payload = json if json is not None else data
+        def looks_like_form_sequence(value: Any) -> bool:
+            if not isinstance(value, (list, tuple)):
+                return False
+            return all(
+                isinstance(item, (list, tuple))
+                and len(item) == 2
+                and isinstance(item[0], str)
+                for item in value
+            )
+
+        send_json = json
+        send_data = data
+        send_content = content
+        header_values: Dict[str, str] = dict(headers) if headers else {}
+        form_encoded = False
+
+        if send_json is None and send_content is None and files is None:
+            if isinstance(send_data, dict):
+                send_json = send_data
+                send_data = None
+            elif isinstance(send_data, (list, tuple)) and not looks_like_form_sequence(send_data):
+                send_json = send_data
+                send_data = None
+            elif isinstance(send_data, (list, tuple)) and looks_like_form_sequence(send_data):
+                from urllib.parse import urlencode
+
+                encoded = urlencode(send_data, doseq=True).encode("utf-8")
+                send_content = encoded
+                send_data = None
+                form_encoded = True
+
+        if form_encoded and not any(key.lower() == "content-type" for key in header_values):
+            header_values["Content-Type"] = "application/x-www-form-urlencoded"
 
         return await self._requestor.request(
             method=method,
             path=path,
             params=params,
-            json=payload,
-            headers=headers,
+            json=send_json,
+            data=send_data,
+            content=send_content,
+            files=files,
+            headers=header_values,
             expected=expected,
         )
 

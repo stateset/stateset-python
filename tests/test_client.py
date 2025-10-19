@@ -173,6 +173,67 @@ async def test_request_returns_none_for_empty_body() -> None:
 
 
 @pytest.mark.asyncio
+async def test_request_allows_raw_content() -> None:
+    captured: Dict[str, Any] = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        captured["content"] = request.content
+        captured["headers"] = dict(request.headers)
+        return httpx.Response(200, json={"ok": True})
+
+    transport = httpx.MockTransport(handler)
+    async_client = httpx.AsyncClient(transport=transport, base_url="https://example.com")
+    client = Stateset(api_key="key", base_url="https://example.com", client=async_client)
+
+    try:
+        payload = b"\x00\x01binary"
+        await client.request(
+            "POST",
+            "uploads",
+            content=payload,
+            headers={"Content-Type": "application/octet-stream"},
+        )
+        assert captured["content"] == payload
+        header_value = captured["headers"].get("Content-Type") or captured["headers"].get(
+            "content-type"
+        )
+        assert header_value == "application/octet-stream"
+    finally:
+        await client.aclose()
+        await async_client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_request_preserves_form_data_sequences() -> None:
+    captured: Dict[str, Any] = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        body = await request.aread()
+        captured["content"] = body.decode()
+        captured["headers"] = dict(request.headers)
+        return httpx.Response(200, json={"ok": True})
+
+    transport = httpx.MockTransport(handler)
+    async_client = httpx.AsyncClient(transport=transport, base_url="https://example.com")
+    client = Stateset(api_key="key", base_url="https://example.com", client=async_client)
+
+    try:
+        await client.request(
+            "POST",
+            "forms",
+            data=[("field", "value"), ("field", "second")],
+        )
+        assert captured["content"] in {"field=value&field=second", "field=second&field=value"}
+        content_type = captured["headers"].get("Content-Type") or captured["headers"].get(
+            "content-type"
+        )
+        assert content_type and content_type.startswith("application/x-www-form-urlencoded")
+    finally:
+        await client.aclose()
+        await async_client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_request_merges_additional_headers() -> None:
     captured: Dict[str, str] = {}
 
@@ -314,6 +375,38 @@ async def test_request_retries_on_rate_limit_with_retry_after(monkeypatch: pytes
 
 
 @pytest.mark.asyncio
+async def test_request_retries_rate_limit_without_retry_after(monkeypatch: pytest.MonkeyPatch) -> None:
+    sleep_calls: List[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleep_calls.append(delay)
+
+    monkeypatch.setattr("stateset.client.asyncio.sleep", fake_sleep)
+
+    attempts = 0
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            return httpx.Response(429)
+        return httpx.Response(200, json={"ok": True})
+
+    transport = httpx.MockTransport(handler)
+    async_client = httpx.AsyncClient(transport=transport, base_url="https://example.com")
+    client = Stateset(api_key="key", base_url="https://example.com", client=async_client)
+
+    try:
+        result = await client.request("GET", "orders")
+        assert result == {"ok": True}
+        assert attempts == 3
+        assert pytest.approx(sleep_calls[0]) == 0.25
+        assert pytest.approx(sleep_calls[1]) == 0.5
+    finally:
+        await client.aclose()
+        await async_client.aclose()
+
+@pytest.mark.asyncio
 async def test_request_retries_on_server_error_with_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
     sleep_calls: List[float] = []
 
@@ -412,6 +505,40 @@ async def test_rate_limit_retry_after_fallback_backoff(monkeypatch: pytest.Monke
         result = await client.request("GET", "orders")
         assert result == {"ok": True}
         assert pytest.approx(sleep_calls[0]) == 0.5 * (2**-1)
+    finally:
+        await client.aclose()
+        await async_client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_workflows_get_requires_workflow_key() -> None:
+    async def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"unexpected": {}})
+
+    transport = httpx.MockTransport(handler)
+    async_client = httpx.AsyncClient(transport=transport, base_url="https://example.com")
+    client = Stateset(api_key="key", base_url="https://example.com", client=async_client)
+
+    try:
+        with pytest.raises(StatesetAPIError):
+            await client.workflows.get("wf_123")
+    finally:
+        await client.aclose()
+        await async_client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_workflows_list_requires_array() -> None:
+    async def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"workflows": {}})
+
+    transport = httpx.MockTransport(handler)
+    async_client = httpx.AsyncClient(transport=transport, base_url="https://example.com")
+    client = Stateset(api_key="key", base_url="https://example.com", client=async_client)
+
+    try:
+        with pytest.raises(StatesetAPIError):
+            await client.workflows.list()
     finally:
         await client.aclose()
         await async_client.aclose()

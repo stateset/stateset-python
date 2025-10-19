@@ -17,10 +17,8 @@ from typing import (
     Generic,
     List,
     Literal,
-    Mapping,
     MutableMapping,
     Optional,
-    Protocol,
     TextIO,
     Tuple,
     TypeVar,
@@ -29,7 +27,6 @@ from typing import (
 from http import HTTPStatus
 from pathlib import Path
 import mimetypes
-import json
 
 from attrs import define, field
 
