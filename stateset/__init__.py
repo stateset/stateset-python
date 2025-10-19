@@ -2,8 +2,8 @@
 Stateset Python SDK
 ===================
 
-This package provides an asynchronous client for the Stateset API along with
-resource-specific helpers, shared type definitions, and rich error classes.
+This package provides an asynchronous client for the Stateset API together
+with a small set of typed helper utilities.
 """
 
 from ._version import __api_version__, __version__

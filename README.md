@@ -82,6 +82,9 @@ client = Stateset(
     api_key="your_api_key",
     client=async_client,  # SDK will not close externally supplied clients
 )
+
+# Later, close the shared client when your app shuts down.
+await async_client.aclose()
 ```
 
 ## Error Handling
@@ -121,24 +124,6 @@ async with Stateset(api_key="your_api_key") as client:
     )
 ```
 
-### Filtering and Pagination
-
-Most list methods support filtering:
-
-```python
-# Filter work orders by status
-work_orders = await client.workorders.list(status="in_progress")
-
-# Filter returns by date range
-returns = await client.returns.list(
-    date_from="2024-01-01",
-    date_to="2024-12-31"
-)
-
-# Filter inventory by facility
-inventory = await client.inventory.list(facility_id="facility_123")
-```
-
 ## Development
 
 ### Setting up for development
@@ -171,7 +156,7 @@ twine upload dist/*
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome issues and pull requests that improve the SDK.
 
 ## License
 

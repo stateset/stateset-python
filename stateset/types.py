@@ -18,6 +18,7 @@ from typing import (
     List,
     Literal,
     Mapping,
+    MutableMapping,
     Optional,
     Protocol,
     TextIO,
@@ -25,6 +26,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from http import HTTPStatus
 from pathlib import Path
 import mimetypes
 import json
@@ -213,6 +215,16 @@ class File:
         except Exception as e:
             raise FileUploadError(f"Failed to prepare file for upload: {str(e)}")
 
+
+@dataclass
+class Response(Generic[T]):
+    """Represents an HTTP response from the Stateset API."""
+
+    status_code: HTTPStatus
+    content: bytes
+    headers: MutableMapping[str, str]
+    parsed: Optional[T]
+
 __all__ = [
     "StatesetID",
     "Timestamp",
@@ -225,6 +237,7 @@ __all__ = [
     "PaginatedList",
     "File",
     "FileUploadError",
+    "Response",
     "UNSET",
     "UnsetType",
     "OptionalUnset",
