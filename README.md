@@ -1,124 +1,185 @@
-# stateset-client
-A client library for accessing Stateset
+# Stateset Python SDK
 
-## Usage
-First, create a client:
+A comprehensive Python SDK for the Stateset API, providing easy access to all Stateset resources including returns, warranties, orders, inventory management, work orders, and more.
 
-```python
-from stateset_client import Client
+[![PyPI version](https://badge.fury.io/py/stateset-python.svg)](https://pypi.org/project/stateset-python/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/stateset-python)](https://pypi.org/project/stateset-python/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-client = Client(base_url="https://api.stateset.com")
+## Installation
+
+```bash
+pip install stateset-python
 ```
 
-If the endpoints you're going to hit require authentication, use `AuthenticatedClient` instead:
+## Quick Start
 
 ```python
-from stateset_client import AuthenticatedClient
+import asyncio
+from stateset import Stateset
 
-client = AuthenticatedClient(base_url="https://api.stateset.com", token="SuperSecretToken")
+async def main():
+    async with Stateset(api_key="your_api_key") as client:
+        # Retrieve orders
+        orders = await client.orders.list(status="processing")
+        print(orders)
+
+        # Create a return
+        new_return = await client.returns.create({
+            "order_id": "order_123",
+            "customer_id": "cust_456",
+            "items": [{"order_item_id": "item_1", "quantity": 1}],
+            "shipping_address": {
+                "name": "Ada Lovelace",
+                "address_line1": "123 Analytical Engine Way",
+                "city": "London",
+                "postal_code": "N1 9GU",
+                "country": "GB"
+            }
+        })
+        print(new_return)
+
+# Run the async function
+asyncio.run(main())
 ```
 
-Now call your endpoint and use your models:
+> **Note:** The SDK is asynchronous-only. Use `asyncio.run` or anyio-compatible frameworks to drive client calls.
+
+## Available Resources
+
+The high-level client exposes typed helpers for the most common workflows:
+
+- `client.orders` – CRUD helpers for order management plus `mark_as_shipped` and `cancel`.
+- `client.returns` – Create returns, list existing ones, and transition states (`approve`, `cancel`, `mark_received`).
+- `client.inventory` – Inspect inventory and issue simple adjustments.
+- `client.workflows` – Manage automations (list, get, create, update, delete).
+- `client.warranties` – Manage warranty lifecycle transitions.
+
+Any attribute that is not explicitly implemented falls back to a `GenericResource`, giving you thin CRUD wrappers for the corresponding REST collection (for example, `client.agents`, `client.channels`, `client.purchase_orders`). If you need richer semantics, add a dedicated resource module under `stateset/resources/` and wire it up in `stateset/client.py`.
+
+## Configuration
+
+### Custom Base URL
 
 ```python
-from stateset_client.models import MyDataModel
-from stateset_client.api.my_tag import get_my_data_model
-from stateset_client.types import Response
-
-with client as client:
-    my_data: MyDataModel = get_my_data_model.sync(client=client)
-    # or if you need more info (e.g. status_code)
-    response: Response[MyDataModel] = get_my_data_model.sync_detailed(client=client)
-```
-
-Or do the same thing with an async version:
-
-```python
-from stateset_client.models import MyDataModel
-from stateset_client.api.my_tag import get_my_data_model
-from stateset_client.types import Response
-
-async with client as client:
-    my_data: MyDataModel = await get_my_data_model.asyncio(client=client)
-    response: Response[MyDataModel] = await get_my_data_model.asyncio_detailed(client=client)
-```
-
-By default, when you're calling an HTTPS API it will attempt to verify that SSL is working correctly. Using certificate verification is highly recommended most of the time, but sometimes you may need to authenticate to a server (especially an internal server) using a custom certificate bundle.
-
-```python
-client = AuthenticatedClient(
-    base_url="https://internal_api.stateset.com", 
-    token="SuperSecretToken",
-    verify_ssl="/path/to/certificate_bundle.pem",
+client = Stateset(
+    api_key="your_api_key",
+    base_url="https://your-custom-stateset-instance.com/api"
 )
 ```
 
-You can also disable certificate validation altogether, but beware that **this is a security risk**.
-
-```python
-client = AuthenticatedClient(
-    base_url="https://internal_api.stateset.com", 
-    token="SuperSecretToken", 
-    verify_ssl=False
-)
-```
-
-Things to know:
-1. Every path/method combo becomes a Python module with four functions:
-    1. `sync`: Blocking request that returns parsed data (if successful) or `None`
-    1. `sync_detailed`: Blocking request that always returns a `Request`, optionally with `parsed` set if the request was successful.
-    1. `asyncio`: Like `sync` but async instead of blocking
-    1. `asyncio_detailed`: Like `sync_detailed` but async instead of blocking
-
-1. All path/query params, and bodies become method arguments.
-1. If your endpoint had any tags on it, the first tag will be used as a module name for the function (my_tag above)
-1. Any endpoint which did not have a tag will be in `stateset_client.api.default`
-
-## Advanced customizations
-
-There are more settings on the generated `Client` class which let you control more runtime behavior, check out the docstring on that class for more info. You can also customize the underlying `httpx.Client` or `httpx.AsyncClient` (depending on your use-case):
-
-```python
-from stateset_client import Client
-
-def log_request(request):
-    print(f"Request event hook: {request.method} {request.url} - Waiting for response")
-
-def log_response(response):
-    request = response.request
-    print(f"Response event hook: {request.method} {request.url} - Status {response.status_code}")
-
-client = Client(
-    base_url="https://api.stateset.com",
-    httpx_args={"event_hooks": {"request": [log_request], "response": [log_response]}},
-)
-
-# Or get the underlying httpx client to modify directly with client.get_httpx_client() or client.get_async_httpx_client()
-```
-
-You can even set the httpx client directly, but beware that this will override any existing settings (e.g., base_url):
+### Custom Timeout or HTTPX Client
 
 ```python
 import httpx
-from stateset_client import Client
 
-client = Client(
-    base_url="https://api.stateset.com",
+async_client = httpx.AsyncClient(
+    base_url="https://your-custom-stateset-instance.com/api",
+    timeout=60.0,
 )
-# Note that base_url needs to be re-set, as would any shared cookies, headers, etc.
-client.set_httpx_client(httpx.Client(base_url="https://api.stateset.com", proxies="http://localhost:8030"))
+
+client = Stateset(
+    api_key="your_api_key",
+    client=async_client,  # SDK will not close externally supplied clients
+)
 ```
 
-## Building / publishing this package
-This project uses [Poetry](https://python-poetry.org/) to manage dependencies  and packaging.  Here are the basics:
-1. Update the metadata in pyproject.toml (e.g. authors, version)
-1. If you're using a private repository, configure it with Poetry
-    1. `poetry config repositories.<your-repository-name> <url-to-your-repository>`
-    1. `poetry config http-basic.<your-repository-name> <username> <password>`
-1. Publish the client with `poetry publish --build -r <your-repository-name>` or, if for public PyPI, just `poetry publish --build`
+## Error Handling
 
-If you want to install this client into another project without publishing it (e.g. for development) then:
-1. If that project **is using Poetry**, you can simply do `poetry add <path-to-this-client>` from that project
-1. If that project is not using Poetry:
-    1. Build a wheel with `poetry build -f wheel`
-    1. Install that wheel from the other project `pip install <path-to-wheel>`
+The SDK provides comprehensive error handling:
+
+```python
+from stateset import StatesetError, StatesetAPIError, StatesetAuthenticationError
+
+async with Stateset(api_key="your_api_key") as client:
+    try:
+        result = await client.returns.get("invalid_id")
+    except StatesetAuthenticationError:
+        print("Authentication failed")
+    except StatesetAPIError as e:
+        print(f"API error: {e}")
+    except StatesetError as e:
+        print(f"General error: {e}")
+```
+
+## Advanced Usage
+
+### Custom Requests
+
+For advanced use cases, you can make direct API requests:
+
+```python
+async with Stateset(api_key="your_api_key") as client:
+    # Custom GET request
+    response = await client.request("GET", "custom/endpoint", params={"expand": "items"})
+    
+    # Custom POST request
+    response = await client.request(
+        "POST", 
+        "custom/endpoint",
+        data={"key": "value"}
+    )
+```
+
+### Filtering and Pagination
+
+Most list methods support filtering:
+
+```python
+# Filter work orders by status
+work_orders = await client.workorders.list(status="in_progress")
+
+# Filter returns by date range
+returns = await client.returns.list(
+    date_from="2024-01-01",
+    date_to="2024-12-31"
+)
+
+# Filter inventory by facility
+inventory = await client.inventory.list(facility_id="facility_123")
+```
+
+## Development
+
+### Setting up for development
+
+```bash
+git clone https://github.com/stateset/stateset-python.git
+cd stateset-python
+pip install -e ".[dev]"
+```
+
+### Running tests
+
+```bash
+pytest
+```
+
+### Building the package
+
+```bash
+pip install build
+python -m build
+```
+
+### Publishing to PyPI
+
+```bash
+pip install twine
+twine upload dist/*
+```
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support and questions:
+- 📧 Email: support@stateset.com
+- 📚 Documentation: [docs.stateset.com](https://docs.stateset.com)
+- 🐛 Issues: [GitHub Issues](https://github.com/stateset/stateset-python/issues)
